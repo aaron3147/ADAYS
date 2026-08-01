@@ -56,7 +56,7 @@ export default {
       }
     }
 
-    // 3. 取得簽到紀錄與學費統計報表 API (已避開未建立的 students 資料表)
+    // 3. 取得簽到紀錄與學費統計報表 API (已移除不存在的 checkin_time 欄位)
     if (path === '/api/report' && request.method === 'GET') {
       try {
         const query = `
@@ -64,8 +64,7 @@ export default {
             attendance.id,
             attendance.student_id,
             classes.name as class_name,
-            classes.cost_per_session,
-            attendance.checkin_time
+            classes.cost_per_session
           FROM attendance
           JOIN classes ON attendance.class_id = classes.id
           ORDER BY attendance.id DESC
