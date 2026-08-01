@@ -3,23 +3,10 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
-    // 1. 取得學生課表 API
-    if (path === '/api/student-classes' && request.method === 'GET') {
-      const studentId = url.searchParams.get('studentId');
-      if (!studentId) {
-        return new Response(JSON.stringify({ error: '缺少 studentId' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
+    // 1. 取得所有學生清單 API (從選課表中自動抓取現有學生)
+    if (path === '/api/students' && request.method === 'GET') {
       try {
-        const query = `
-          SELECT classes.id, classes.name, classes.cost_per_session 
-          FROM enrollments 
-          JOIN classes ON enrollments.class_id = classes.id 
-          WHERE enrollments.student_id = ?
-        `;
-        const { results } = await env.DB.prepare(query).bind(studentId).all();
+        const { results } = await env.DB.prepare('SELECT DISTINCT student_id FROM enrollments').all();
         return new Response(JSON.stringify(results), {
           headers: { 'Content-Type': 'application/json' },
         });
@@ -31,7 +18,36 @@ export default {
       }
     }
 
-    // 2. 簽到 API
+    // 2. 取得指定學生的課表與簽到狀態 API
+    if (path === '/api/student-classes' && request.method === 'GET') {
+      const studentId = url.searchParams.get('studentId');
+      if (!studentId) {
+        return new Response(JSON.stringify({ error: '缺少 studentId' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      try {
+        const query = `
+          SELECT classes.id, classes.name, classes.cost_per_session,
+                 (SELECT COUNT(1) FROM attendance WHERE attendance.student_id = ? AND attendance.class_id = classes.id) as is_checked_in
+          FROM enrollments 
+          JOIN classes ON enrollments.class_id = classes.id 
+          WHERE enrollments.student_id = ?
+        `;
+        const { results } = await env.DB.prepare(query).bind(studentId, studentId).all();
+        return new Response(JSON.stringify(results), {
+          headers: { 'Content-Type': 'application/json' },
+        });
+      } catch (error) {
+        return new Response(JSON.stringify({ error: error.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    // 3. 老師執行點名 API (防重複點名檢核)
     if (path === '/api/checkin' && request.method === 'POST') {
       try {
         const { studentId, classId } = await request.json();
@@ -41,11 +57,24 @@ export default {
             headers: { 'Content-Type': 'application/json' }
           });
         }
+
+        // 檢查是否已經點過名
+        const existing = await env.DB.prepare(
+          'SELECT id FROM attendance WHERE student_id = ? AND class_id = ?'
+        ).bind(studentId, classId).first();
+
+        if (existing) {
+          return new Response(JSON.stringify({ success: false, error: '此課程已經點過名了，請勿重複點名！' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
         await env.DB.prepare(
           'INSERT INTO attendance (student_id, class_id) VALUES (?, ?)'
         ).bind(studentId, classId).run();
 
-        return new Response(JSON.stringify({ success: true, message: '簽到成功！' }), {
+        return new Response(JSON.stringify({ success: true, message: '點名成功！' }), {
           headers: { 'Content-Type': 'application/json' },
         });
       } catch (error) {
@@ -56,7 +85,29 @@ export default {
       }
     }
 
-    // 3. 取得簽到紀錄與學費統計報表 API (已移除不存在的 checkin_time 欄位)
+    // 4. 老師取消點名 API
+    if (path === '/api/cancel-checkin' && request.method === 'POST') {
+      try {
+        const { id } = await request.json();
+        if (!id) {
+          return new Response(JSON.stringify({ success: false, error: '缺少紀錄 ID' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+        await env.DB.prepare('DELETE FROM attendance WHERE id = ?').bind(id).run();
+        return new Response(JSON.stringify({ success: true, message: '已取消點名' }), {
+          headers: { 'Content-Type': 'application/json' },
+        });
+      } catch (error) {
+        return new Response(JSON.stringify({ success: false, error: error.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    // 5. 取得所有點名紀錄與學費統計報表 API
     if (path === '/api/report' && request.method === 'GET') {
       try {
         const query = `
