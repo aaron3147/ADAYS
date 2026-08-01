@@ -2,211 +2,389 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>補習班教師點名與學費管理系統</title>
+    <title>補習班排課與學生管理系統</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: auto; background-color: #f4f7f6; }
-        .box { background: white; border: 1px solid #ddd; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        select, button { padding: 10px; margin-top: 10px; width: 100%; font-size: 16px; border-radius: 4px; border: 1px solid #ccc; }
-        button { background-color: #0070f3; color: white; border: none; cursor: pointer; font-weight: bold; }
-        button:hover { background-color: #0051a2; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 14px; }
-        th { background-color: #f2f2f2; }
-        .teacher-box { border-left: 5px solid #0070f3; }
-        .admin-box { border-left: 5px solid #28a745; }
-        .admin-btn { background-color: #28a745; margin-top: 5px; }
-        .admin-btn:hover { background-color: #218838; }
-        .cancel-btn { background-color: #dc3545; padding: 5px 10px; width: auto; font-size: 14px; }
-        .cancel-btn:hover { background-color: #c82333; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; background-color: #f0f2f5; color: #333; }
+        header { background: #004085; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+        header h1 { margin: 0; font-size: 20px; }
+        .nav-tabs { background: #fff; display: flex; border-bottom: 1px solid #ddd; padding: 0 20px; }
+        .nav-tab { padding: 15px 20px; cursor: pointer; font-weight: bold; color: #555; border-bottom: 3px solid transparent; }
+        .nav-tab.active { color: #004085; border-bottom-color: #004085; }
+        .container { padding: 20px; max-width: 1400px; margin: auto; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        /* 篩選與工具列 */
+        .toolbar { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; gap: 15px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+        .toolbar select, .toolbar input { padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+
+        /* 課表總覽區 (網格樣式) */
+        .schedule-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; overflow-x: auto; }
+        .schedule-col { background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); min-height: 500px; display: flex; flex-direction: column; }
+        .schedule-col-header { background: #007bff; color: white; text-align: center; padding: 10px; font-weight: bold; border-top-left-radius: 8px; border-top-right-radius: 8px; }
+        .schedule-col-body { padding: 10px; display: flex; flex-direction: column; gap: 10px; flex-grow: 1; overflow-y: auto; }
+        
+        /* 課程卡片 */
+        .course-card { background: #e7f1ff; border-left: 4px solid #007bff; border-radius: 6px; padding: 10px; font-size: 13px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); position: relative; }
+        .course-card .title { font-weight: bold; color: #004085; margin-bottom: 5px; }
+        .course-card div { margin-bottom: 3px; color: #555; }
+
+        /* 表單與表格 */
+        .form-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px; margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 5px; color: #555; }
+        .form-group input, .form-group select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button.btn { background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        button.btn:hover { background: #218838; }
+
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        th, td { padding: 10px 12px; border-bottom: 1px solid #eee; text-align: left; font-size: 14px; }
+        th { background: #f8f9fa; color: #333; }
     </style>
 </head>
 <body>
-    <h1>補習班教師點名與學費管理系統</h1>
-    
-    <!-- 老師點名專區 -->
-    <div class="box teacher-box">
-        <h3>👨‍🏫 老師專用點名介面</h3>
-        <label>1. 選擇學生：</label>
-        <select id="studentSelect" onchange="onStudentChange()">
-            <option value="">載入學生中...</option>
-        </select>
 
-        <div id="checkinSection" style="display:none; margin-top: 15px;">
-            <label>2. 選擇上課班別（已點名課程會自動鎖定）：</label>
-            <select id="classSelect">
-                <option value="">請選擇班別</option>
-            </select>
-            <button onclick="submitCheckin()">確認幫學生點名</button>
-        </div>
-        <p id="message" style="margin-top: 10px; font-weight: bold;"></p>
+    <header>
+        <h1>補習班排課與學生管理系統</h1>
+        <div id="currentUserDisplay">管理者模式</div>
+    </header>
+
+    <div class="nav-tabs">
+        <div class="nav-tab active" onclick="switchTab('scheduleTab')">📅 課表總覽區</div>
+        <div class="nav-tab" onclick="switchTab('courseSetupTab')">⚙️ 課程與週期建立</div>
+        <div class="nav-tab" onclick="switchTab('studentModuleTab')">🎓 學生資料與家長登入</div>
+        <div class="nav-tab" onclick="switchTab('reportTab')">📊 點名與學費統計</div>
     </div>
 
-    <!-- 老師/管理者端報表區 -->
-    <div class="box admin-box">
-        <h3>📊 點名紀錄與學費統計報表</h3>
-        <button class="admin-btn" onclick="loadReport()">重新載入報表</button>
-        <div style="overflow-x: auto;">
-            <table>
-                <thead>
-                    <tr>
-                        <th>學生姓名</th>
-                        <th>班別</th>
-                        <th>單堂費用</th>
-                        <th>簽到時間</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody id="reportTableBody">
-                    <tr><td colspan="5" style="text-align: center; color: #777;">載入中...</td></tr>
-                </tbody>
-            </table>
+    <div class="container">
+        
+        <!-- 1. 課表總覽區 -->
+        <div id="scheduleTab" class="tab-content active">
+            <div class="toolbar">
+                <label>學校：<select id="filterSchool"><option value="">全部學校</option></select></label>
+                <label>年份：<select id="filterYear"><option value="2026">2026年</option></select></label>
+                <label>月份：<select id="filterMonth">
+                    <option value="6">6月</option><option value="7">7月</option><option value="8" selected>8月</option>
+                </select></label>
+                <button class="btn" onclick="loadScheduleGrid()">重新整理課表</button>
+            </div>
+
+            <div class="schedule-grid" id="scheduleGridContainer">
+                <!-- 動態生成週一到週日 -->
+            </div>
         </div>
+
+        <!-- 2. 課程與週期建立 -->
+        <div id="courseSetupTab" class="tab-content">
+            <div class="form-card">
+                <h3>建立新課程與重複週期</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>課程名稱</label>
+                        <input type="text" id="cName" placeholder="例如：ENGLISH-Level1-A-1">
+                    </div>
+                    <div class="form-group">
+                        <label>課程類別 <button onclick="addMeta('category')" style="font-size:10px;">+新增</button></label>
+                        <select id="cCategory"><option value="">載入中...</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label>授課老師 <button onclick="addMeta('teacher')" style="font-size:10px;">+新增</button></label>
+                        <select id="cTeacher"><option value="">載入中...</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label>上課教室 <button onclick="addMeta('classroom')" style="font-size:10px;">+新增</button></label>
+                        <select id="cClassroom"><option value="">載入中...</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label>星期 (星期幾上課)</label>
+                        <select id="cDay">
+                            <option value="1">週一</option><option value="2">週二</option><option value="3">週三</option>
+                            <option value="4">週四</option><option value="5">週五</option><option value="6">週六</option><option value="7">週日</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>開始時間</label>
+                        <input type="time" id="cStartTime" value="14:30">
+                    </div>
+                    <div class="form-group">
+                        <label>結束時間</label>
+                        <input type="time" id="cEndTime" value="16:00">
+                    </div>
+                    <div class="form-group">
+                        <label>週期開始日期</label>
+                        <input type="date" id="cStartDate" value="2026-06-01">
+                    </div>
+                    <div class="form-group">
+                        <label>週期結束日期</label>
+                        <input type="date" id="cEndDate" value="2026-12-31">
+                    </div>
+                </div>
+                <button class="btn" onclick="createCourse()">儲存並建立課程</button>
+            </div>
+        </div>
+
+        <!-- 3. 學生資料與家長登入模組 -->
+        <div id="studentModuleTab" class="tab-content">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="form-card">
+                    <h3>🎓 建立學生完整資料</h3>
+                    <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+                        <div class="form-group"><label>中文姓名</label><input type="text" id="sChineseName"></div>
+                        <div class="form-group"><label>英文姓名</label><input type="text" id="sEnglishName"></div>
+                        <div class="form-group"><label>性別</label><select id="sGender"><option value="男">男</option><option value="女">女</option></select></div>
+                        <div class="form-group"><label>出生年月日</label><input type="date" id="sBirthDate"></div>
+                        <div class="form-group"><label>就讀學校</label><input type="text" id="sSchool" placeholder="例如：日子私塾"></div>
+                        <div class="form-group"><label>年級</label><input type="text" id="sGrade" placeholder="例如：小學五年級"></div>
+                        <div class="form-group"><label>家長姓名</label><input type="text" id="sParentName"></div>
+                        <div class="form-group"><label>家長手機 (登入帳號)</label><input type="text" id="sParentPhone" placeholder="0912345678"></div>
+                    </div>
+                    <p style="font-size: 12px; color: #666;">* 家長登入預設密碼為 <strong>1234</strong></p>
+                    <button class="btn" onclick="createStudent()">建立學生檔案</button>
+                </div>
+
+                <div class="form-card">
+                    <h3>📱 家長手機快速登入測試</h3>
+                    <div class="form-group" style="margin-bottom:15px;"><label>家長手機號碼</label><input type="text" id="loginPhone" placeholder="輸入手機號碼"></div>
+                    <div class="form-group" style="margin-bottom:15px;"><label>密碼 (預設 1234)</label><input type="password" id="loginPassword" value="1234"></div>
+                    <button class="btn" style="background:#007bff;" onclick="parentLogin()">家長登入</button>
+                    <div id="loginResult" style="margin-top: 15px; font-weight: bold;"></div>
+                </div>
+            </div>
+
+            <div class="form-card" style="margin-top: 20px;">
+                <h3>📋 現有學生名單列表</h3>
+                <table>
+                    <thead>
+                        <tr><th>中文姓名</th><th>英文姓名</th><th>性別</th><th>學校</th><th>年級</th><th>家長姓名</th><th>家長手機</th></tr>
+                    </thead>
+                    <tbody id="studentTableBody"><tr><td colspan="7" style="text-align:center;">載入中...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 4. 點名與報表 -->
+        <div id="reportTab" class="tab-content">
+            <div class="form-card">
+                <h3>📊 點名紀錄與學費統計</h3>
+                <button class="btn" onclick="loadReport()" style="margin-bottom: 15px;">重新載入報表</button>
+                <table>
+                    <thead>
+                        <tr><th>學生姓名</th><th>課程名稱</th><th>類別</th><th>簽到時間</th></tr>
+                    </thead>
+                    <tbody id="reportTableBody"><tr><td colspan="4" style="text-align:center;">載入中...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
     </div>
 
     <script>
-        // 頁面載入時初始化：載入學生清單與報表
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
         window.onload = async () => {
-            await loadStudents();
+            await loadMeta();
+            loadScheduleGrid();
+            loadStudents();
             loadReport();
         };
 
-        async function loadStudents() {
+        async function loadMeta() {
             try {
-                const response = await fetch('/api/students');
-                const students = await response.json();
-                const selectBox = document.getElementById('studentSelect');
-                selectBox.innerHTML = '<option value="">請選擇學生</option>';
+                const res = await fetch('/api/meta');
+                const data = await res.json();
                 
-                students.forEach(s => {
-                    const option = document.createElement('option');
-                    option.value = s.student_id;
-                    option.textContent = s.name ? `${s.name} (${s.student_id})` : s.student_id;
-                    selectBox.appendChild(option);
-                });
+                const catSel = document.getElementById('cCategory');
+                catSel.innerHTML = data.categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+
+                const teaSel = document.getElementById('cTeacher');
+                teaSel.innerHTML = data.teachers.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+
+                const roomSel = document.getElementById('cClassroom');
+                roomSel.innerHTML = data.classrooms.map(r => `<option value="${r.id}">${r.name}</option>`).join('');
             } catch (err) {
-                document.getElementById('studentSelect').innerHTML = '<option value="">載入學生失敗</option>';
+                console.error(err);
             }
         }
 
-        async function onStudentChange() {
-            const studentId = document.getElementById('studentSelect').value;
-            const checkinSection = document.getElementById('checkinSection');
-            const msg = document.getElementById('message');
-            msg.innerText = "";
-
-            if (!studentId) {
-                checkinSection.style.display = 'none';
-                return;
-            }
-
-            try {
-                const response = await fetch(`/api/student-classes?studentId=${studentId}`);
-                const classes = await response.json();
-                
-                const selectBox = document.getElementById('classSelect');
-                selectBox.innerHTML = '<option value="">請選擇班別</option>';
-                
-                classes.forEach(c => {
-                    const option = document.createElement('option');
-                    option.value = c.id;
-                    if (c.is_checked_in > 0) {
-                        option.textContent = `${c.name} (已點名，無法重複)`;
-                        option.disabled = true; // 鎖定已點名課程，防止重複點名
-                        option.style.color = "#999";
-                    } else {
-                        option.textContent = `${c.name} (單堂費用: $${c.cost_per_session})`;
-                        option.disabled = false;
-                        option.style.color = "#000";
-                    }
-                    selectBox.appendChild(option);
-                });
-
-                checkinSection.style.display = 'block';
-            } catch (err) {
-                msg.innerText = "載入課表失敗";
-                msg.style.color = "red";
+        async function addMeta(type) {
+            const name = prompt(`請輸入新的${type === 'category' ? '課程類別' : type === 'teacher' ? '老師姓名' : '教室名稱'}：`);
+            if (!name) return;
+            const res = await fetch('/api/meta/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type, name })
+            });
+            const result = await res.json();
+            if (result.success) {
+                alert('新增成功！');
+                loadMeta();
+            } else {
+                alert('新增失敗: ' + result.error);
             }
         }
 
-        async function submitCheckin() {
-            const studentId = document.getElementById('studentSelect').value;
-            const classId = document.getElementById('classSelect').value;
-            const msg = document.getElementById('message');
+        async function createCourse() {
+            const data = {
+                category_id: document.getElementById('cCategory').value,
+                name: document.getElementById('cName').value,
+                teacher_id: document.getElementById('cTeacher').value,
+                classroom_id: document.getElementById('cClassroom').value,
+                day_of_week: document.getElementById('cDay').value,
+                start_time: document.getElementById('cStartTime').value,
+                end_time: document.getElementById('cEndTime').value,
+                start_date: document.getElementById('cStartDate').value,
+                end_date: document.getElementById('cEndDate').value
+            };
+            if (!data.name) return alert('請填寫課程名稱');
+
+            const res = await fetch('/api/courses/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            const result = await res.json();
+            if (result.success) {
+                alert('課程與週期建立成功！');
+                loadScheduleGrid();
+            } else {
+                alert('建立失敗: ' + result.error);
+            }
+        }
+
+        async function loadScheduleGrid() {
+            const container = document.getElementById('scheduleGridContainer');
+            const daysMap = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
             
-            if (!studentId) return alert('請先選擇學生');
-            if (!classId) return alert('請先選擇班別');
-
-            msg.innerText = "點名處理中...";
-            msg.style.color = "black";
             try {
-                const response = await fetch('/api/checkin', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ studentId, classId })
-                });
-                
-                const result = await response.json();
-                if(result.success) {
-                    msg.innerText = "點名成功！";
-                    msg.style.color = "green";
-                    onStudentChange(); // 重新整理該學生的課表選單狀態，將該課程鎖定
-                    loadReport();      // 自動更新下方報表
-                } else {
-                    msg.innerText = result.error || "點名失敗";
-                    msg.style.color = "red";
+                const res = await fetch('/api/courses');
+                const courses = await res.json();
+
+                container.innerHTML = '';
+                for (let i = 1; i <= 7; i++) {
+                    const dayCourses = courses.filter(c => c.day_of_week == i);
+                    let colHtml = `
+                        <div class="schedule-col">
+                            <div class="schedule-col-header">${daysMap[i-1]}</div>
+                            <div class="schedule-col-body">
+                    `;
+                    if (dayCourses.length === 0) {
+                        colHtml += `<div style="color:#999; text-align:center; font-size:12px; margin-top:20px;">無排課</div>`;
+                    } else {
+                        dayCourses.forEach(c => {
+                            colHtml += `
+                                <div class="course-card">
+                                    <div class="title">${c.category_name || '一般'} - ${c.name}</div>
+                                    <div>上課時間：${c.start_time} ~ ${c.end_time}</div>
+                                    <div>上課教室：${c.classroom_name || '未指定'}</div>
+                                    <div>老師：${c.teacher_name || '未指定'}</div>
+                                </div>
+                            `;
+                        });
+                    }
+                    colHtml += `</div></div>`;
+                    container.innerHTML += colHtml;
                 }
             } catch (err) {
-                msg.innerText = "網路錯誤";
-                msg.style.color = "red";
+                container.innerHTML = '<p>載入課表失敗</p>';
             }
         }
 
-        async function cancelCheckin(id) {
-            if (!confirm('確定要取消這筆點名紀錄嗎？')) return;
+        async function createStudent() {
+            const data = {
+                chinese_name: document.getElementById('sChineseName').value,
+                english_name: document.getElementById('sEnglishName').value,
+                gender: document.getElementById('sGender').value,
+                birth_date: document.getElementById('sBirthDate').value,
+                school: document.getElementById('sSchool').value,
+                grade: document.getElementById('sGrade').value,
+                parent_name: document.getElementById('sParentName').value,
+                parent_phone: document.getElementById('sParentPhone').value
+            };
+            if (!data.chinese_name || !data.parent_phone) return alert('請填寫學生中文姓名與家長手機');
+
+            const res = await fetch('/api/students/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            const result = await res.json();
+            if (result.success) {
+                alert('學生建立成功！預設家長密碼為 1234');
+                loadStudents();
+            } else {
+                alert(result.error);
+            }
+        }
+
+        async function loadStudents() {
+            const tbody = document.getElementById('studentTableBody');
             try {
-                const response = await fetch('/api/cancel-checkin', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id })
-                });
-                const result = await response.json();
-                if (result.success) {
-                    loadReport();
-                    onStudentChange(); // 同步更新目前選定學生的課表選單解除鎖定
-                } else {
-                    alert(result.error || '取消失敗');
+                const res = await fetch('/api/students');
+                const students = await res.json();
+                if (students.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">目前尚無學生資料</td></tr>';
+                    return;
                 }
+                tbody.innerHTML = students.map(s => `
+                    <tr>
+                        <td>${s.chinese_name}</td>
+                        <td>${s.english_name || '-'}</td>
+                        <td>${s.gender || '-'}</td>
+                        <td>${s.school || '-'}</td>
+                        <td>${s.grade || '-'}</td>
+                        <td>${s.parent_name || '-'}</td>
+                        <td>${s.parent_phone}</td>
+                    </tr>
+                `).join('');
             } catch (err) {
-                alert('網路錯誤，取消失敗');
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red;">載入失敗</td></tr>';
+            }
+        }
+
+        async function parentLogin() {
+            const phone = document.getElementById('loginPhone').value;
+            const password = document.getElementById('loginPassword').value;
+            const res = await fetch('/api/parent/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone, password })
+            });
+            const result = await res.json();
+            const resultDiv = document.getElementById('loginResult');
+            if (result.success) {
+                resultDiv.style.color = 'green';
+                resultDiv.innerText = `登入成功！歡迎家長 ${result.student.parent_name} (學員：${result.student.chinese_name})`;
+                document.getElementById('currentUserDisplay').innerText = `家長：${result.student.chinese_name} 家長`;
+            } else {
+                resultDiv.style.color = 'red';
+                resultDiv.innerText = result.error;
             }
         }
 
         async function loadReport() {
             const tbody = document.getElementById('reportTableBody');
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">載入中...</td></tr>';
             try {
-                const response = await fetch('/api/report');
-                const records = await response.json();
-
+                const res = await fetch('/api/report');
+                const records = await res.json();
                 if (records.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #777;">目前尚無點名紀錄</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">尚無點名紀錄</td></tr>';
                     return;
                 }
-
-                tbody.innerHTML = '';
-                records.forEach(r => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
+                tbody.innerHTML = records.map(r => `
+                    <tr>
                         <td>${r.student_name}</td>
                         <td>${r.class_name}</td>
-                        <td>$${r.cost_per_session}</td>
+                        <td>${r.category_name}</td>
                         <td>${r.checkin_time}</td>
-                        <td><button class="cancel-btn" onclick="cancelCheckin(${r.id})">取消點名</button></td>
-                    `;
-                    tbody.appendChild(tr);
-                });
+                    </tr>
+                `).join('');
             } catch (err) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: red;">載入報表失敗</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:red;">載入報表失敗</td></tr>';
             }
         }
     </script>
