@@ -11,7 +11,7 @@
         .nav-tabs { background: #fff; display: flex; border-bottom: 1px solid #ddd; padding: 0 20px; overflow-x: auto; }
         .nav-tab { padding: 15px 20px; cursor: pointer; font-weight: bold; color: #555; border-bottom: 3px solid transparent; white-space: nowrap; }
         .nav-tab.active { color: #004085; border-bottom-color: #004085; }
-        .container { padding: 20px; max-width: 1400px; margin: auto; }
+        .container { padding: 20px; max-width: 1500px; margin: auto; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         
@@ -19,21 +19,25 @@
         .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px; margin-bottom: 15px; }
         .form-group label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 5px; color: #555; }
         .form-group input, .form-group select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        button.btn { background: #28a745; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; }
+        
+        button.btn { background: #28a745; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; }
         button.btn:hover { background: #218838; }
         button.btn-blue { background: #007bff; }
         button.btn-blue:hover { background: #0056b3; }
         button.btn-danger { background: #dc3545; }
         button.btn-danger:hover { background: #c82333; }
+        button.btn-arrow { background: #6c757d; color: white; padding: 3px 8px; font-size: 14px; }
+        button.btn-arrow:hover { background: #5a6268; }
 
-        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-top: 10px; }
-        th, td { padding: 10px 12px; border-bottom: 1px solid #eee; text-align: left; font-size: 14px; }
-        th { background: #f8f9fa; color: #333; }
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 4px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        th, td { padding: 8px 10px; border: 1px solid #ddd; text-align: left; font-size: 14px; }
+        th { background: #f8f9fa; color: #333; text-align: center; }
+        td.actions { text-align: center; white-space: nowrap; }
 
-        .level-box { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 15px; min-height: 300px; }
-        .level-item { padding: 10px; margin-bottom: 5px; background: #f8f9fa; border-radius: 4px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border: 1px solid transparent; }
-        .level-item.active { background: #e7f1ff; border-color: #007bff; font-weight: bold; color: #004085; }
-        
+        .levels-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: start; }
+        .level-table-box { background: white; border: 1px solid #ccc; border-radius: 6px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .level-table-box h3 { margin-top: 0; font-size: 16px; color: #004085; border-bottom: 2px solid #004085; padding-bottom: 8px; }
+
         .schedule-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; overflow-x: auto; }
         .schedule-col { background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); min-height: 400px; display: flex; flex-direction: column; }
         .schedule-col-header { background: #007bff; color: white; text-align: center; padding: 10px; font-weight: bold; border-top-left-radius: 8px; border-top-right-radius: 8px; }
@@ -58,36 +62,71 @@
 
     <div class="container">
         
-        <!-- 1. 三層聯動課程名稱設定 -->
+        <!-- 1. 三層表格化課程名稱設定 -->
         <div id="tabLevels" class="tab-content active">
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+            <div class="form-card" style="margin-bottom:10px; padding:10px; background:#e9ecef; font-size:13px; color:#495057;">
+                💡 操作說明：點擊各層項目右側的 <strong>[ >> ]</strong> 按鈕，即可將該項目代入並解鎖下一層以建立或檢視對應項目。
+            </div>
+            <div class="levels-container">
+                
                 <!-- 第一層 -->
-                <div class="level-box">
-                    <h3>第一層類別 (例如: 英語)</h3>
-                    <div style="display:flex; gap:5px; margin-bottom:15px;">
-                        <input type="text" id="inputL1" placeholder="新增第一層">
-                        <button class="btn" onclick="addLevel1()">新增</button>
-                    </div>
-                    <div id="listL1"></div>
+                <div class="level-table-box">
+                    <h3>第一層類別設定</h3>
+                    <table>
+                        <thead>
+                            <tr><th style="width:50px;">編號</th><th>第一層名稱</th><th style="width:90px;">編輯/刪除</th><th style="width:40px;">選擇</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>+</td>
+                                <td><input type="text" id="inputL1" placeholder="新增第一層名稱" style="width:100%; box-sizing:border-box; padding:4px;"></td>
+                                <td colspan="2" style="text-align:center;"><button class="btn" onclick="addLevel1()">+新增</button></td>
+                            </tr>
+                        </tbody>
+                        <tbody id="tableBodyL1"></tbody>
+                    </table>
                 </div>
+
                 <!-- 第二層 -->
-                <div class="level-box">
-                    <h3>第二層名稱 (例如: Level1)</h3>
-                    <div style="display:flex; gap:5px; margin-bottom:15px;">
-                        <input type="text" id="inputL2" placeholder="新增第二層">
-                        <button class="btn" onclick="addLevel2()">新增</button>
-                    </div>
-                    <div id="listL2"><div style="color:#888; font-size:13px;">請先選擇左側第一層</div></div>
+                <div class="level-table-box">
+                    <h3 id="titleL2">第二層名稱設定 (請先選擇第一層)</h3>
+                    <table>
+                        <thead>
+                            <tr><th style="width:50px;">編號</th><th>第二層名稱</th><th style="width:90px;">編輯/刪除</th><th style="width:40px;">選擇</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>+</td>
+                                <td><input type="text" id="inputL2" placeholder="新增第二層名稱" style="width:100%; box-sizing:border-box; padding:4px;"></td>
+                                <td colspan="2" style="text-align:center;"><button class="btn" onclick="addLevel2()">+新增</button></td>
+                            </tr>
+                        </tbody>
+                        <tbody id="tableBodyL2">
+                            <tr><td colspan="4" style="text-align:center; color:#888;">請點擊左側第一層的 [ >> ] 按鈕</td></tr>
+                        </tbody>
+                    </table>
                 </div>
+
                 <!-- 第三層 -->
-                <div class="level-box">
-                    <h3>第三層名稱 (例如: A-5)</h3>
-                    <div style="display:flex; gap:5px; margin-bottom:15px;">
-                        <input type="text" id="inputL3" placeholder="新增第三層">
-                        <button class="btn" onclick="addLevel3()">新增</button>
-                    </div>
-                    <div id="listL3"><div style="color:#888; font-size:13px;">請先選擇中間第二層</div></div>
+                <div class="level-table-box">
+                    <h3 id="titleL3">第三層名稱設定 (請先選擇第二層)</h3>
+                    <table>
+                        <thead>
+                            <tr><th style="width:50px;">編號</th><th>第三層名稱</th><th style="width:90px;">編輯/刪除</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>+</td>
+                                <td><input type="text" id="inputL3" placeholder="新增第三層名稱" style="width:100%; box-sizing:border-box; padding:4px;"></td>
+                                <td style="text-align:center;"><button class="btn" onclick="addLevel3()">+新增</button></td>
+                            </tr>
+                        </tbody>
+                        <tbody id="tableBodyL3">
+                            <tr><td colspan="3" style="text-align:center; color:#888;">請點擊中間第二層的 [ >> ] 按鈕</td></tr>
+                        </tbody>
+                    </table>
                 </div>
+
             </div>
         </div>
 
@@ -199,7 +238,9 @@
 
     <script>
         let selectedL1Id = null;
+        let selectedL1Name = '';
         let selectedL2Id = null;
+        let selectedL2Name = '';
 
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -216,86 +257,111 @@
             loadEnrollments();
         };
 
-        // --- 三層聯動選單邏輯 ---
+        // --- 三層聯動表格邏輯 ---
         async function loadLevel1() {
             const res = await fetch('/api/levels/level1');
             const data = await res.json();
-            document.getElementById('listL1').innerHTML = data.map(i => `
-                <div class="level-item ${selectedL1Id==i.id?'active':''}" onclick="selectL1(${i.id}, '${i.name}')">
-                    <span>${i.name}</span>
-                    <div>
-                        <button class="btn" style="padding:2px 6px; font-size:11px;" onclick="event.stopPropagation(); editLevel('level1', ${i.id}, '${i.name}')">改</button>
-                        <button class="btn btn-danger" style="padding:2px 6px; font-size:11px;" onclick="event.stopPropagation(); deleteLevel('level1', ${i.id})">刪</button>
-                    </div>
-                </div>
+            document.getElementById('tableBodyL1').innerHTML = data.map((i, idx) => `
+                <tr style="${selectedL1Id==i.id?'background:#e7f1ff;':''}">
+                    <td style="text-align:center;">${String(idx+1).padStart(2,'0')}</td>
+                    <td>${i.name}</td>
+                    <td class="actions">
+                        <button class="btn" style="padding:2px 6px;" onclick="editLevel('level1', ${i.id}, '${i.name}')">改</button>
+                        <button class="btn btn-danger" style="padding:2px 6px;" onclick="deleteLevel('level1', ${i.id})">刪</button>
+                    </td>
+                    <td class="actions">
+                        <button class="btn btn-arrow" onclick="selectL1(${i.id}, '${i.name}')">&gt;&gt;</button>
+                    </td>
+                </tr>
             `).join('');
 
             // 同步更新排課頁面的下拉
             const cL1 = document.getElementById('cLevel1');
             cL1.innerHTML = data.map(i => `<option value="${i.id}">${i.name}</option>`).join('');
-            if(data.length > 0 && !selectedL1Id) selectL1(data[0].id, data[0].name);
-            else if(cL1.value) loadSelectL2();
+            if(data.length > 0 && !selectedL1Id) {
+                selectL1(data[0].id, data[0].name);
+            } else if(cL1.value) {
+                loadSelectL2();
+            }
         }
 
         async function selectL1(id, name) {
             selectedL1Id = id;
+            selectedL1Name = name;
             selectedL2Id = null;
-            loadLevel1();
+            selectedL2Name = '';
+            loadLevel1(); // 更新高亮
+
+            document.getElementById('titleL2').innerText = `第二層名稱設定 (已選: ${name})`;
+            document.getElementById('titleL3').innerText = `第三層名稱設定 (請先選擇第二層)`;
+            document.getElementById('tableBodyL3').innerHTML = `<tr><td colspan="3" style="text-align:center; color:#888;">請點擊中間第二層的 [ >> ] 按鈕</td></tr>`;
+
             const res = await fetch(`/api/levels/level2?l1_id=${id}`);
             const data = await res.json();
-            document.getElementById('listL2').innerHTML = data.map(i => `
-                <div class="level-item ${selectedL2Id==i.id?'active':''}" onclick="selectL2(${i.id}, '${i.name}')">
-                    <span>${i.name}</span>
-                    <div>
-                        <button class="btn" style="padding:2px 6px; font-size:11px;" onclick="event.stopPropagation(); editLevel('level2', ${i.id}, '${i.name}')">改</button>
-                        <button class="btn btn-danger" style="padding:2px 6px; font-size:11px;" onclick="event.stopPropagation(); deleteLevel('level2', ${i.id})">刪</button>
-                    </div>
-                </div>
+            document.getElementById('tableBodyL2').innerHTML = data.map((i, idx) => `
+                <tr style="${selectedL2Id==i.id?'background:#e7f1ff;':''}">
+                    <td style="text-align:center;">${String(idx+1).padStart(2,'0')}</td>
+                    <td>${i.name}</td>
+                    <td class="actions">
+                        <button class="btn" style="padding:2px 6px;" onclick="editLevel('level2', ${i.id}, '${i.name}')">改</button>
+                        <button class="btn btn-danger" style="padding:2px 6px;" onclick="deleteLevel('level2', ${i.id})">刪</button>
+                    </td>
+                    <td class="actions">
+                        <button class="btn btn-arrow" onclick="selectL2(${i.id}, '${i.name}')">&gt;&gt;</button>
+                    </td>
+                </tr>
             `).join('');
-            document.getElementById('listL3').innerHTML = `<div style="color:#888; font-size:13px;">請先選擇中間第二層</div>`;
+
             loadSelectL2();
         }
 
         async function selectL2(id, name) {
             selectedL2Id = id;
-            selectL1(selectedL1Id); // refresh active state
+            selectedL2Name = name;
+            selectL1(selectedL1Id, selectedL1Name); // 重新渲染維持第二層高亮
+
+            document.getElementById('titleL3').innerText = `第三層名稱設定 (已選: ${name})`;
+
             const res = await fetch(`/api/levels/level3?l2_id=${id}`);
             const data = await res.json();
-            document.getElementById('listL3').innerHTML = data.map(i => `
-                <div class="level-item">
-                    <span>${i.name}</span>
-                    <div>
-                        <button class="btn" style="padding:2px 6px; font-size:11px;" onclick="editLevel('level3', ${i.id}, '${i.name}')">改</button>
-                        <button class="btn btn-danger" style="padding:2px 6px; font-size:11px;" onclick="deleteLevel('level3', ${i.id})">刪</button>
-                    </div>
-                </div>
+            document.getElementById('tableBodyL3').innerHTML = data.map((i, idx) => `
+                <tr>
+                    <td style="text-align:center;">${String(idx+1).padStart(2,'0')}</td>
+                    <td>${i.name}</td>
+                    <td class="actions">
+                        <button class="btn" style="padding:2px 6px;" onclick="editLevel('level3', ${i.id}, '${i.name}')">改</button>
+                        <button class="btn btn-danger" style="padding:2px 6px;" onclick="deleteLevel('level3', ${i.id})">刪</button>
+                    </td>
+                </tr>
             `).join('');
+
+            loadSelectL3();
         }
 
         async function addLevel1() {
-            const name = document.getElementById('inputL1').value;
-            if(!name) return alert('請輸入名稱');
+            const name = document.getElementById('inputL1').value.trim();
+            if(!name) return alert('請輸入第一層名稱');
             await fetch('/api/levels/level1', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name}) });
             document.getElementById('inputL1').value = '';
             loadLevel1();
         }
 
         async function addLevel2() {
-            if(!selectedL1Id) return alert('請先選擇第一層類別');
-            const name = document.getElementById('inputL2').value;
-            if(!name) return alert('請輸入名稱');
+            if(!selectedL1Id) return alert('請先點擊第一層右側的 [ >> ] 選擇父層類別');
+            const name = document.getElementById('inputL2').value.trim();
+            if(!name) return alert('請輸入第二層名稱');
             await fetch('/api/levels/level2', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name, level1_id: selectedL1Id}) });
             document.getElementById('inputL2').value = '';
-            selectL1(selectedL1Id);
+            selectL1(selectedL1Id, selectedL1Name);
         }
 
         async function addLevel3() {
-            if(!selectedL2Id) return alert('請先選擇第二層類別');
-            const name = document.getElementById('inputL3').value;
-            if(!name) return alert('請輸入名稱');
+            if(!selectedL2Id) return alert('請先點擊第二層右側的 [ >> ] 選擇父層類別');
+            const name = document.getElementById('inputL3').value.trim();
+            if(!name) return alert('請輸入第三層名稱');
             await fetch('/api/levels/level3', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name, level2_id: selectedL2Id}) });
             document.getElementById('inputL3').value = '';
-            selectL2(selectedL2Id);
+            selectL2(selectedL2Id, selectedL2Name);
         }
 
         async function editLevel(level, id, oldName) {
@@ -303,20 +369,24 @@
             if(!newName || newName === oldName) return;
             await fetch(`/api/levels/${level}/${id}`, { method: 'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name: newName}) });
             loadLevel1();
-            if(selectedL1Id) selectL1(selectedL1Id);
-            if(selectedL2Id) selectL2(selectedL2Id);
+            if(selectedL1Id) selectL1(selectedL1Id, selectedL1Name);
+            if(selectedL2Id) selectL2(selectedL2Id, selectedL2Name);
         }
 
         async function deleteLevel(level, id) {
-            if(!confirm('確定要刪除嗎？')) return;
+            if(!confirm('確定要刪除嗎？若有關聯子項目或課程可能會受影響。')) return;
             await fetch(`/api/levels/${level}/${id}`, { method: 'DELETE' });
             loadLevel1();
-            if(selectedL1Id) selectL1(selectedL1Id);
+            if(selectedL1Id) {
+                selectedL2Id = null;
+                selectL1(selectedL1Id, selectedL1Name);
+            }
         }
 
         // 排課連動下拉
         async function loadSelectL2() {
             const l1_id = document.getElementById('cLevel1').value;
+            if(!l1_id) return;
             const res = await fetch(`/api/levels/level2?l1_id=${l1_id}`);
             const data = await res.json();
             document.getElementById('cLevel2').innerHTML = data.map(i => `<option value="${i.id}">${i.name}</option>`).join('');
@@ -325,6 +395,10 @@
 
         async function loadSelectL3() {
             const l2_id = document.getElementById('cLevel2').value;
+            if(!l2_id) {
+                document.getElementById('cLevel3').innerHTML = '';
+                return;
+            }
             const res = await fetch(`/api/levels/level3?l2_id=${l2_id}`);
             const data = await res.json();
             document.getElementById('cLevel3').innerHTML = data.map(i => `<option value="${i.id}">${i.name}</option>`).join('');
@@ -364,13 +438,11 @@
             const res = await fetch('/api/courses');
             const courses = await res.json();
             
-            // 列表
             document.getElementById('courseTableBody').innerHTML = courses.map(c => `
                 <tr><td>${c.name}</td><td>${c.start_date}</td><td>${c.start_time}~${c.end_time}</td><td>${c.teacher_name||'-'}</td><td>${c.classroom_name||'-'}</td>
                 <td><button class="btn btn-danger" style="padding:2px 6px;" onclick="deleteCourse(${c.id})">刪除</button></td></tr>
             `).join('');
 
-            // Grid
             const container = document.getElementById('scheduleGridContainer');
             const daysMap = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
             container.innerHTML = '';

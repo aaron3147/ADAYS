@@ -10,7 +10,7 @@ export default {
     });
 
     try {
-      // 1. 三層課程名稱管理 API (支援層級、修改、刪除)
+      // 1. 三層課程名稱管理 API
       if (path.startsWith('/api/levels/')) {
         const parts = path.split('/');
         const level = parts[3]; // level1, level2, level3
@@ -18,17 +18,17 @@ export default {
 
         if (method === 'GET') {
           if (level === 'level1') {
-            const { results } = await env.DB.prepare('SELECT * FROM course_level1').all();
+            const { results } = await env.DB.prepare('SELECT * FROM course_level1 ORDER BY id ASC').all();
             return jsonRes(results);
           } else if (level === 'level2') {
             const l1_id = url.searchParams.get('l1_id');
-            const query = l1_id ? 'SELECT * FROM course_level2 WHERE level1_id = ?' : 'SELECT * FROM course_level2';
+            const query = l1_id ? 'SELECT * FROM course_level2 WHERE level1_id = ? ORDER BY id ASC' : 'SELECT * FROM course_level2 ORDER BY id ASC';
             const stmt = l1_id ? env.DB.prepare(query).bind(l1_id) : env.DB.prepare(query);
             const { results } = await stmt.all();
             return jsonRes(results);
           } else if (level === 'level3') {
             const l2_id = url.searchParams.get('l2_id');
-            const query = l2_id ? 'SELECT * FROM course_level3 WHERE level2_id = ?' : 'SELECT * FROM course_level3';
+            const query = l2_id ? 'SELECT * FROM course_level3 WHERE level2_id = ? ORDER BY id ASC' : 'SELECT * FROM course_level3 ORDER BY id ASC';
             const stmt = l2_id ? env.DB.prepare(query).bind(l2_id) : env.DB.prepare(query);
             const { results } = await stmt.all();
             return jsonRes(results);
@@ -68,7 +68,7 @@ export default {
         return jsonRes({ classrooms, teachers });
       }
 
-      // 2. 課程與區間週期管理 (支援刪除、修改)
+      // 2. 課程與區間週期管理
       if (path === '/api/courses' && method === 'GET') {
         const query = `
           SELECT courses.*, 
@@ -106,7 +106,7 @@ export default {
         const l1Obj = await env.DB.prepare('SELECT name FROM course_level1 WHERE id = ?').bind(level1_id).first();
         const l2Obj = await env.DB.prepare('SELECT name FROM course_level2 WHERE id = ?').bind(level2_id).first();
         const l3Obj = await env.DB.prepare('SELECT name FROM course_level3 WHERE id = ?').bind(level3_id).first();
-        const courseName = `${l1Obj?.name || ''}-${l2Obj?.name || ''}-${l3Obj?.name || ''}`;
+        const courseName = `${l1Obj?.name || ''} - ${l2Obj?.name || ''} - ${l3Obj?.name || ''}`;
 
         let batchQueries = [];
         while (curr <= end) {
@@ -126,7 +126,7 @@ export default {
         return jsonRes({ success: true, count: batchQueries.length });
       }
 
-      // 3. 學生管理 (支援匯入、修改、刪除、升降年級)
+      // 3. 學生管理
       if (path === '/api/students' && method === 'GET') {
         const { results } = await env.DB.prepare('SELECT * FROM students ORDER BY id DESC').all();
         return jsonRes(results);
