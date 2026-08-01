@@ -139,7 +139,7 @@ export default {
           batch.push(env.DB.prepare(`
             INSERT INTO students (chinese_name, english_name, gender, birth_date, school, grade, parent_name, parent_phone, password)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, '1234'))
-          `).bind(s.chinese_name, s.english_name || '', s.gender || '', s.birth_date || '', s.school || '', s.grade || '', s.parent_name || '', s.parent_phone, s.password));
+          `).bind(s.chinese_name, s.english_name || '', s.gender || '', s.birth_date || '', s.school || '', s.grade || '', s.parent_name || '', s.parent_phone, s.password || '1234'));
         }
         await env.DB.batch(batch);
         return jsonRes({ success: true, count: batch.length });
@@ -149,8 +149,8 @@ export default {
         const id = path.split('/')[3];
         const s = await request.json();
         await env.DB.prepare(`
-          UPDATE students SET chinese_name=?, english_name=?, gender=?, birth_date=?, school=?, grade=?, parent_name=?, parent_phone=? WHERE id=?
-        `).bind(s.chinese_name, s.english_name, s.gender, s.birth_date, s.school, s.grade, s.parent_name, s.parent_phone, id).run();
+          UPDATE students SET chinese_name=?, english_name=?, gender=?, birth_date=?, school=?, grade=?, parent_name=?, parent_phone=?, password=? WHERE id=?
+        `).bind(s.chinese_name, s.english_name || '', s.gender || '', s.birth_date || '', s.school || '', s.grade || '', s.parent_name || '', s.parent_phone || '', s.password || '1234', id).run();
         return jsonRes({ success: true });
       }
 

@@ -191,7 +191,7 @@
                 <h3>現有學生名單 (可直接編輯或刪除)</h3>
                 <table>
                     <thead>
-                        <tr><th>姓名</th><th>英文名</th><th>學校</th><th>年級</th><th>家長姓名</th><th>家長手機</th><th>操作</th></tr>
+                        <tr><th>姓名</th><th>英文名</th><th>學校</th><th>年級</th><th>家長姓名</th><th>家長手機</th><th>登入密碼</th><th>操作</th></tr>
                     </thead>
                     <tbody id="studentTableBody"></tbody>
                 </table>
@@ -257,7 +257,7 @@
             loadEnrollments();
         };
 
-        // --- 三層聯動表格邏輯 ---
+        // --- 三層聯動表格邏輯 (修正狀態被洗掉的問題) ---
         async function loadLevel1() {
             const res = await fetch('/api/levels/level1');
             const data = await res.json();
@@ -275,28 +275,52 @@
                 </tr>
             `).join('');
 
-            // 同步更新排課頁面的下拉
             const cL1 = document.getElementById('cLevel1');
             cL1.innerHTML = data.map(i => `<option value="${i.id}">${i.name}</option>`).join('');
+            
+            // 如果尚未選擇第一層且有資料，預設選第一筆
             if(data.length > 0 && !selectedL1Id) {
-                selectL1(data[0].id, data[0].name);
-            } else if(cL1.value) {
-                loadSelectL2();
+                await selectL1(data[0].id, data[0].name);
+            } else if (selectedL1Id) {
+                // 重新載入時維持當前第二層資料，不隨意清空
+                await refreshLevel2View();
             }
         }
 
         async function selectL1(id, name) {
             selectedL1Id = id;
             selectedL1Name = name;
-            selectedL2Id = null;
+            selectedL2Id = null; // 切換第一層時才重置第二層
             selectedL2Name = '';
-            loadLevel1(); // 更新高亮
+
+            // 更新第一層高亮
+            const res1 = await fetch('/api/levels/level1');
+            const data1 = await res1.json();
+            document.getElementById('tableBodyL1').innerHTML = data1.map((i, idx) => `
+                <tr style="${selectedL1Id==i.id?'background:#e7f1ff;':''}">
+                    <td style="text-align:center;">${String(idx+1).padStart(2,'0')}</td>
+                    <td>${i.name}</td>
+                    <td class="actions">
+                        <button class="btn" style="padding:2px 6px;" onclick="editLevel('level1', ${i.id}, '${i.name}')">改</button>
+                        <button class="btn btn-danger" style="padding:2px 6px;" onclick="deleteLevel('level1', ${i.id})">刪</button>
+                    </td>
+                    <td class="actions">
+                        <button class="btn btn-arrow" onclick="selectL1(${i.id}, '${i.name}')">&gt;&gt;</button>
+                    </td>
+                </tr>
+            `).join('');
 
             document.getElementById('titleL2').innerText = `第二層名稱設定 (已選: ${name})`;
             document.getElementById('titleL3').innerText = `第三層名稱設定 (請先選擇第二層)`;
             document.getElementById('tableBodyL3').innerHTML = `<tr><td colspan="3" style="text-align:center; color:#888;">請點擊中間第二層的 [ >> ] 按鈕</td></tr>`;
 
-            const res = await fetch(`/api/levels/level2?l1_id=${id}`);
+            await refreshLevel2View();
+            loadSelectL2();
+        }
+
+        async function refreshLevel2View() {
+            if (!selectedL1Id) return;
+            const res = await fetch(`/api/levels/level2?l1_id=${selectedL1Id}`);
             const data = await res.json();
             document.getElementById('tableBodyL2').innerHTML = data.map((i, idx) => `
                 <tr style="${selectedL2Id==i.id?'background:#e7f1ff;':''}">
@@ -311,14 +335,12 @@
                     </td>
                 </tr>
             `).join('');
-
-            loadSelectL2();
         }
 
         async function selectL2(id, name) {
             selectedL2Id = id;
             selectedL2Name = name;
-            selectL1(selectedL1Id, selectedL1Name); // 重新渲染維持第二層高亮
+            await refreshLevel2View(); // 重新渲染以保持第二層高亮
 
             document.getElementById('titleL3').innerText = `第三層名稱設定 (已選: ${name})`;
 
@@ -352,7 +374,7 @@
             if(!name) return alert('請輸入第二層名稱');
             await fetch('/api/levels/level2', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name, level1_id: selectedL1Id}) });
             document.getElementById('inputL2').value = '';
-            selectL1(selectedL1Id, selectedL1Name);
+            await refreshLevel2View();
         }
 
         async function addLevel3() {
@@ -369,18 +391,15 @@
             if(!newName || newName === oldName) return;
             await fetch(`/api/levels/${level}/${id}`, { method: 'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name: newName}) });
             loadLevel1();
-            if(selectedL1Id) selectL1(selectedL1Id, selectedL1Name);
             if(selectedL2Id) selectL2(selectedL2Id, selectedL2Name);
         }
 
         async function deleteLevel(level, id) {
             if(!confirm('確定要刪除嗎？若有關聯子項目或課程可能會受影響。')) return;
             await fetch(`/api/levels/${level}/${id}`, { method: 'DELETE' });
+            if(level === 'level1') { selectedL1Id = null; selectedL2Id = null; }
+            if(level === 'level2') { selectedL2Id = null; }
             loadLevel1();
-            if(selectedL1Id) {
-                selectedL2Id = null;
-                selectL1(selectedL1Id, selectedL1Name);
-            }
         }
 
         // 排課連動下拉
@@ -465,7 +484,7 @@
             loadCourses();
         }
 
-        // --- 學生管理 ---
+        // --- 學生管理 (完整支援密碼修改與儲存) ---
         function importStudentsExcel() {
             const fileInput = document.getElementById('excelFile');
             if(fileInput.files.length === 0) return alert('請選擇檔案');
@@ -486,12 +505,13 @@
             const students = await res.json();
             document.getElementById('studentTableBody').innerHTML = students.map(s => `
                 <tr>
-                    <td><input type="text" id="s_name_${s.id}" value="${s.chinese_name}" style="width:90px;"></td>
-                    <td><input type="text" id="s_ename_${s.id}" value="${s.english_name||''}" style="width:90px;"></td>
-                    <td><input type="text" id="s_school_${s.id}" value="${s.school||''}" style="width:90px;"></td>
-                    <td><input type="text" id="s_grade_${s.id}" value="${s.grade||''}" style="width:70px;"></td>
-                    <td><input type="text" id="s_pname_${s.id}" value="${s.parent_name||''}" style="width:90px;"></td>
-                    <td><input type="text" id="s_pphone_${s.id}" value="${s.parent_phone}" style="width:110px;"></td>
+                    <td><input type="text" id="s_name_${s.id}" value="${s.chinese_name}" style="width:80px;"></td>
+                    <td><input type="text" id="s_ename_${s.id}" value="${s.english_name||''}" style="width:80px;"></td>
+                    <td><input type="text" id="s_school_${s.id}" value="${s.school||''}" style="width:80px;"></td>
+                    <td><input type="text" id="s_grade_${s.id}" value="${s.grade||''}" style="width:60px;"></td>
+                    <td><input type="text" id="s_pname_${s.id}" value="${s.parent_name||''}" style="width:80px;"></td>
+                    <td><input type="text" id="s_pphone_${s.id}" value="${s.parent_phone}" style="width:100px;"></td>
+                    <td><input type="text" id="s_pwd_${s.id}" value="${s.password||'1234'}" style="width:80px;"></td>
                     <td>
                         <button class="btn" style="padding:2px 6px;" onclick="updateStudent(${s.id})">儲存</button>
                         <button class="btn btn-danger" style="padding:2px 6px;" onclick="deleteStudent(${s.id})">刪</button>
@@ -510,11 +530,17 @@
                 school: document.getElementById(`s_school_${id}`).value,
                 grade: document.getElementById(`s_grade_${id}`).value,
                 parent_name: document.getElementById(`s_pname_${id}`).value,
-                parent_phone: document.getElementById(`s_pphone_${id}`).value
+                parent_phone: document.getElementById(`s_pphone_${id}`).value,
+                password: document.getElementById(`s_pwd_${id}`).value || '1234'
             };
-            await fetch(`/api/students/${id}`, { method: 'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(s) });
-            alert('學生資料更新成功！');
-            loadStudents();
+            const res = await fetch(`/api/students/${id}`, { method: 'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(s) });
+            const result = await res.json();
+            if(result.success) {
+                alert('學生資料與密碼更新成功！');
+                loadStudents();
+            } else {
+                alert('更新失敗: ' + result.error);
+            }
         }
 
         async function deleteStudent(id) {
