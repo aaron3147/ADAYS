@@ -189,7 +189,6 @@ export default {
         }
 
         for (let item of datesToCheck) {
-          // 檢查教室衝堂警告
           const { results: existing } = await env.DB.prepare(
             'SELECT courses.*, classrooms.name as c_name FROM courses LEFT JOIN classrooms ON courses.classroom_id = classrooms.id WHERE courses.classroom_id = ? AND courses.start_date = ?'
           ).bind(classroom_id, item.dateStr).all();
@@ -209,7 +208,7 @@ export default {
 
           if (duplicateCheck) {
             skippedCount++;
-            continue; // 跳過不重複建立
+            continue;
           }
 
           let stmt = env.DB.prepare(`
@@ -225,10 +224,19 @@ export default {
         return jsonRes({ success: true, count: batchQueries.length, skippedCount, warnings });
       }
 
-      // 4. 學生管理 (修復修改與刪除)
+      // 4. 學生管理 (支援手動新增、修改、刪除、匯入)
       if (path === '/api/students' && method === 'GET') {
         const { results } = await env.DB.prepare('SELECT * FROM students ORDER BY id DESC').all();
         return jsonRes(results);
+      }
+
+      if (path === '/api/students' && method === 'POST') {
+        const s = await request.json();
+        await env.DB.prepare(`
+          INSERT INTO students (chinese_name, english_name, gender, birth_date, school, grade, parent_name, parent_phone, password)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, '1234'))
+        `).bind(s.chinese_name, s.english_name || '', s.gender || '', s.birth_date || '', s.school || '', s.grade || '', s.parent_name || '', s.parent_phone || '', s.password || '1234').run();
+        return jsonRes({ success: true });
       }
 
       if (path === '/api/students/import' && method === 'POST') {
@@ -255,7 +263,6 @@ export default {
 
       if (path.startsWith('/api/students/') && method === 'DELETE') {
         const id = path.split('/')[3];
-        // 先刪除關聯的報名紀錄，避免外鍵限制導致刪除失敗
         await env.DB.prepare('DELETE FROM enrollments WHERE student_id = ?').bind(id).run();
         await env.DB.prepare('DELETE FROM students WHERE id = ?').bind(id).run();
         return jsonRes({ success: true });
@@ -267,7 +274,7 @@ export default {
         return jsonRes({ success: true });
       }
 
-      // 5. 課程報名與費用
+      // 5. 課程報名與費用 (支援個人報名、班級報名、續班勾選)
       if (path === '/api/enrollments' && method === 'GET') {
         const month = url.searchParams.get('month') || '2026-08';
         const query = `
@@ -293,6 +300,19 @@ export default {
         return jsonRes({ success: true });
       }
 
+      if (path === '/api/enrollments/batch-save' && method === 'POST') {
+        const { student_ids, course_id, enroll_month, fee } = await request.json();
+        let batch = [];
+        for (let student_id of student_ids) {
+          const exist = await env.DB.prepare('SELECT id FROM enrollments WHERE student_id = ? AND course_id = ? AND enroll_month = ?').bind(student_id, course_id, enroll_month).first();
+          if (!exist) {
+            batch.push(env.DB.prepare('INSERT INTO enrollments (student_id, course_id, enroll_month, fee) VALUES (?, ?, ?, ?)').bind(student_id, course_id, enroll_month, fee || 3000));
+          }
+        }
+        if (batch.length > 0) await env.DB.batch(batch);
+        return jsonRes({ success: true, count: batch.length });
+      }
+
       if (path.startsWith('/api/enrollments/') && method === 'DELETE') {
         const id = path.split('/')[3];
         await env.DB.prepare('DELETE FROM enrollments WHERE id = ?').bind(id).run();
@@ -304,7 +324,10 @@ export default {
         const { results: oldEnrollments } = await env.DB.prepare('SELECT student_id, course_id, fee FROM enrollments WHERE enroll_month = ?').bind(source_month).all();
         let batch = [];
         for (let e of oldEnrollments) {
-          batch.push(env.DB.prepare('INSERT INTO enrollments (student_id, course_id, enroll_month, fee) VALUES (?, ?, ?, ?)').bind(e.student_id, e.course_id, target_month, e.fee));
+          const exist = await env.DB.prepare('SELECT id FROM enrollments WHERE student_id = ? AND course_id = ? AND enroll_month = ?').bind(e.student_id, e.course_id, target_month).first();
+          if(!exist) {
+            batch.push(env.DB.prepare('INSERT INTO enrollments (student_id, course_id, enroll_month, fee) VALUES (?, ?, ?, ?)').bind(e.student_id, e.course_id, target_month, e.fee));
+          }
         }
         if (batch.length > 0) await env.DB.batch(batch);
         return jsonRes({ success: true, count: batch.length });
