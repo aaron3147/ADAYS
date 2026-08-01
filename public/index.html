@@ -63,7 +63,7 @@
 
     <div class="container">
         
-        <!-- 1. 系統設定 (三層課程名稱設定 + 教室管理) -->
+        <!-- 1. 系統設定 -->
         <div id="tabSettings" class="tab-content active">
             <div class="form-card" style="margin-bottom: 25px;">
                 <h3>🏫 教室名稱管理</h3>
@@ -132,7 +132,7 @@
         <!-- 2. 排課管理 -->
         <div id="tabCourses" class="tab-content">
             <div class="form-card">
-                <h3>建立週期課程 (衝堂時發出警告但不阻擋建立)</h3>
+                <h3>建立週期課程 (防同名同時段重複建立、衝堂時發出警告)</h3>
                 <div class="form-grid">
                     <div class="form-group"><label>第一層</label><select id="cLevel1" onchange="loadSelectL2()"></select></div>
                     <div class="form-group"><label>第二層</label><select id="cLevel2" onchange="loadSelectL3()"></select></div>
@@ -160,7 +160,13 @@
             </div>
 
             <div class="form-card">
-                <h3>📅 每週課表總覽</h3>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <h3 style="margin:0;">📅 每週課表總覽 (依週次獨立檢視)</h3>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <label style="font-weight:bold; font-size:13px;">選擇顯示週次：</label>
+                        <select id="weekSelect" onchange="renderScheduleGrid()" style="padding:6px; border-radius:4px; border:1px solid #ccc;"></select>
+                    </div>
+                </div>
                 <div class="schedule-grid" id="scheduleGridContainer" style="margin-bottom:20px;"></div>
                 <h4>所有產生之課程明細</h4>
                 <table>
@@ -448,7 +454,7 @@
             document.getElementById('cClassroom').innerHTML = data.classrooms.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
         }
 
-        // --- 排課與衝堂警示 ---
+        // --- 排課與防重複建立 ---
         async function createPeriodCourses() {
             const days = Array.from(document.querySelectorAll('input[name="cDays"]:checked')).map(el => parseInt(el.value));
             const data = {
@@ -467,8 +473,11 @@
             const result = await res.json();
             if(res.ok && result.success) {
                 let msg = `成功產生 ${result.count} 筆課表！`;
+                if(result.skippedCount > 0) {
+                    msg += `\n(已自動略過 ${result.skippedCount} 筆同名同時段之重複課程)`;
+                }
                 if(result.warnings && result.warnings.length > 0) {
-                    msg += `\n\n【注意：發現以下衝堂時段，但課程已建立】\n` + result.warnings.join('\n');
+                    msg += `\n\n【注意：發現以下衝堂時段】\n` + result.warnings.join('\n');
                 }
                 alert(msg);
                 loadCourses();
@@ -486,22 +495,62 @@
                 <td><button class="btn btn-danger" style="padding:2px 6px;" onclick="deleteCourse(${c.id})">刪除</button></td></tr>
             `).join('');
 
+            populateWeekSelect();
+            renderScheduleGrid();
+
+            document.getElementById('enCourse').innerHTML = allGlobalCourses.map(c => `<option value="${c.id}">${c.name} (${c.start_date} ${c.start_time})</option>`).join('');
+            if(document.getElementById('tabClassroomView').classList.contains('active')) {
+                populateClassroomViewSelect();
+            }
+        }
+
+        // 計算並填充週次選項
+        function getWeekRangeString(dateStr) {
+            const d = new Date(dateStr);
+            const day = d.getDay() || 7;
+            d.setDate(d.getDate() - day + 1); // 週一
+            const start = d.toISOString().split('T')[0];
+            d.setDate(d.getDate() + 6); // 週日
+            const end = d.toISOString().split('T')[0];
+            return `${start} ~ ${end}`;
+        }
+
+        function populateWeekSelect() {
+            const weekSelect = document.getElementById('weekSelect');
+            const weeksSet = new Set();
+            allGlobalCourses.forEach(c => {
+                if(c.start_date) {
+                    weeksSet.add(getWeekRangeString(c.start_date));
+                }
+            });
+            const sortedWeeks = Array.from(weeksSet).sort();
+            const currentVal = weekSelect.value;
+            
+            weekSelect.innerHTML = sortedWeeks.map(w => `<option value="${w}">${w}</option>`).join('');
+            if(sortedWeeks.includes(currentVal)) {
+                weekSelect.value = currentVal;
+            }
+        }
+
+        function renderScheduleGrid() {
+            const weekSelect = document.getElementById('weekSelect');
+            const selectedWeek = weekSelect.value;
             const container = document.getElementById('scheduleGridContainer');
             const daysMap = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
             container.innerHTML = '';
+
             for (let i = 1; i <= 7; i++) {
-                const dayCourses = allGlobalCourses.filter(c => c.day_of_week == i);
+                const dayCourses = allGlobalCourses.filter(c => {
+                    if (!c.start_date) return false;
+                    return c.day_of_week == i && getWeekRangeString(c.start_date) === selectedWeek;
+                });
+
                 let colHtml = `<div class="schedule-col"><div class="schedule-col-header">${daysMap[i-1]}</div><div class="schedule-col-body">`;
                 dayCourses.forEach(c => {
                     colHtml += `<div class="course-card"><strong>${c.name}</strong><div>${c.classroom_name || ''}</div><div>${c.start_date}</div><div>${c.start_time}~${c.end_time}</div></div>`;
                 });
                 colHtml += `</div></div>`;
                 container.innerHTML += colHtml;
-            }
-
-            document.getElementById('enCourse').innerHTML = allGlobalCourses.map(c => `<option value="${c.id}">${c.name} (${c.start_date} ${c.start_time})</option>`).join('');
-            if(document.getElementById('tabClassroomView').classList.contains('active')) {
-                populateClassroomViewSelect();
             }
         }
 
@@ -530,7 +579,6 @@
                 return;
             }
 
-            // 檢查衝堂 (同一天時間重疊)
             let conflictMap = {};
             for (let i = 0; i < filtered.length; i++) {
                 for (let j = i + 1; j < filtered.length; j++) {
@@ -620,9 +668,14 @@
         }
 
         async function deleteStudent(id) {
-            if(!confirm('確定刪除此學生？')) return;
-            await fetch(`/api/students/${id}`, { method: 'DELETE' });
-            loadStudents();
+            if(!confirm('確定刪除此學生及其所有報名紀錄？')) return;
+            const res = await fetch(`/api/students/${id}`, { method: 'DELETE' });
+            const result = await res.json();
+            if(result.success) {
+                loadStudents();
+            } else {
+                alert('刪除失敗');
+            }
         }
 
         async function promoteGrades() {

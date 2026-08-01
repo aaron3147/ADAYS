@@ -20,7 +20,6 @@ async function initDB(db) {
     );
   `).run();
   
-  // 自動補齊欄位確保舊資料庫不會發生 no such column 錯誤
   const cols = [
     'parent_phone TEXT', 'password TEXT DEFAULT "1234"', 'english_name TEXT', 
     'gender TEXT', 'birth_date TEXT', 'school TEXT', 'grade TEXT', 'parent_name TEXT'
@@ -143,7 +142,7 @@ export default {
         return jsonRes({ classrooms, teachers });
       }
 
-      // 3. 課程與衝堂警示排課
+      // 3. 課程與防重複建立排課
       if (path === '/api/courses' && method === 'GET') {
         const query = `
           SELECT courses.*, 
@@ -178,6 +177,7 @@ export default {
         let batchQueries = [];
         let datesToCheck = [];
         let warnings = [];
+        let skippedCount = 0;
 
         while (curr <= end) {
           let jsDay = curr.getDay();
@@ -188,8 +188,8 @@ export default {
           curr.setDate(curr.getDate() + 1);
         }
 
-        // 檢查教室衝堂（改為收集警告，但不阻擋建立）
         for (let item of datesToCheck) {
+          // 檢查教室衝堂警告
           const { results: existing } = await env.DB.prepare(
             'SELECT courses.*, classrooms.name as c_name FROM courses LEFT JOIN classrooms ON courses.classroom_id = classrooms.id WHERE courses.classroom_id = ? AND courses.start_date = ?'
           ).bind(classroom_id, item.dateStr).all();
@@ -198,6 +198,18 @@ export default {
             if (start_time < ex.end_time && end_time > ex.start_time) {
               warnings.push(`衝堂警告：${item.dateStr} 該教室已被「${ex.name}」(${ex.start_time}~${ex.end_time}) 佔用！`);
             }
+          }
+
+          // 防重複檢查：同課程名、同教室、同日期、時間重疊者禁止重複建立
+          const duplicateCheck = await env.DB.prepare(`
+            SELECT id FROM courses 
+            WHERE classroom_id = ? AND start_date = ? AND name = ? 
+            AND (start_time < ? AND end_time > ?)
+          `).bind(classroom_id, item.dateStr, courseName, end_time, start_time).first();
+
+          if (duplicateCheck) {
+            skippedCount++;
+            continue; // 跳過不重複建立
           }
 
           let stmt = env.DB.prepare(`
@@ -210,10 +222,10 @@ export default {
         if (batchQueries.length > 0) {
           await env.DB.batch(batchQueries);
         }
-        return jsonRes({ success: true, count: batchQueries.length, warnings });
+        return jsonRes({ success: true, count: batchQueries.length, skippedCount, warnings });
       }
 
-      // 4. 學生管理
+      // 4. 學生管理 (修復修改與刪除)
       if (path === '/api/students' && method === 'GET') {
         const { results } = await env.DB.prepare('SELECT * FROM students ORDER BY id DESC').all();
         return jsonRes(results);
@@ -243,6 +255,8 @@ export default {
 
       if (path.startsWith('/api/students/') && method === 'DELETE') {
         const id = path.split('/')[3];
+        // 先刪除關聯的報名紀錄，避免外鍵限制導致刪除失敗
+        await env.DB.prepare('DELETE FROM enrollments WHERE student_id = ?').bind(id).run();
         await env.DB.prepare('DELETE FROM students WHERE id = ?').bind(id).run();
         return jsonRes({ success: true });
       }
@@ -301,7 +315,7 @@ export default {
         const { phone, password } = await request.json();
         const cleanPhone = (phone || '').trim();
         const cleanPwd = (password || '1234').trim();
-        const student = await env.DB.prepare('SELECT * FROM students WHERE parent_phone = ? AND password = ?').bind(cleanPhone, cleanPwd).first();
+        const student = await env.DB.prepare('SELECT * FROM students WHERE TRIM(parent_phone) = ? AND (TRIM(password) = ? OR password IS NULL OR password = "")').bind(cleanPhone, cleanPwd).first();
         if (student) {
           const enrollments = (await env.DB.prepare(`
             SELECT enrollments.fee, enroll_month, courses.* 
