@@ -53,87 +53,90 @@
     </header>
 
     <div class="nav-tabs">
-        <div class="nav-tab active" onclick="switchTab('tabLevels')">⚙️ 三層課程名稱設定</div>
-        <div class="nav-tab" onclick="switchTab('tabCourses')">📅 區間週期排課與課表</div>
-        <div class="nav-tab" onclick="switchTab('tabStudents')">🎓 學生資料與 Excel 匯入</div>
-        <div class="nav-tab" onclick="switchTab('tabEnrollments')">📝 課程報名與個別費用</div>
-        <div class="nav-tab" onclick="switchTab('tabParent')">📱 家長端與學費查詢</div>
+        <div class="nav-tab active" onclick="switchTab('tabSettings')">⚙️ 系統設定 (課程與教室)</div>
+        <div class="nav-tab" onclick="switchTab('tabCourses')">📅 排課與衝堂檢視</div>
+        <div class="nav-tab" onclick="switchTab('tabStudents')">🎓 學生資料管理</div>
+        <div class="nav-tab" onclick="switchTab('tabEnrollments')">📝 課程報名與費用</div>
+        <div class="nav-tab" onclick="switchTab('tabParent')">📱 家長端登入查詢</div>
     </div>
 
     <div class="container">
         
-        <!-- 1. 三層表格化課程名稱設定 -->
-        <div id="tabLevels" class="tab-content active">
-            <div class="form-card" style="margin-bottom:10px; padding:10px; background:#e9ecef; font-size:13px; color:#495057;">
-                💡 操作說明：點擊各層項目右側的 <strong>[ >> ]</strong> 按鈕，即可將該項目代入並解鎖下一層以建立或檢視對應項目。
+        <!-- 1. 獨立的系統設定頁面 (三層課程名稱設定 + 教室管理) -->
+        <div id="tabSettings" class="tab-content active">
+            <!-- 教室管理區塊 -->
+            <div class="form-card" style="margin-bottom: 25px;">
+                <h3>🏫 教室名稱管理</h3>
+                <div style="display:flex; gap:10px; max-width:400px; margin-bottom:15px;">
+                    <input type="text" id="inputClassroomName" placeholder="輸入教室名稱 (例: 101教室)">
+                    <button class="btn btn-blue" onclick="addClassroom()">+ 新增教室</button>
+                </div>
+                <table>
+                    <thead><tr><th style="width:60px;">編號</th><th>教室名稱</th><th style="width:80px;">操作</th></tr></thead>
+                    <tbody id="tableBodyClassrooms"></tbody>
+                </table>
             </div>
-            <div class="levels-container">
-                
-                <!-- 第一層 -->
-                <div class="level-table-box">
-                    <h3>第一層類別設定</h3>
-                    <table>
-                        <thead>
-                            <tr><th style="width:50px;">編號</th><th>第一層名稱</th><th style="width:90px;">編輯/刪除</th><th style="width:40px;">選擇</th></tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>+</td>
-                                <td><input type="text" id="inputL1" placeholder="新增第一層名稱" style="width:100%; box-sizing:border-box; padding:4px;"></td>
-                                <td colspan="2" style="text-align:center;"><button class="btn" onclick="addLevel1()">+新增</button></td>
-                            </tr>
-                        </tbody>
-                        <tbody id="tableBodyL1"></tbody>
-                    </table>
-                </div>
 
-                <!-- 第二層 -->
-                <div class="level-table-box">
-                    <h3 id="titleL2">第二層名稱設定 (請先選擇第一層)</h3>
-                    <table>
-                        <thead>
-                            <tr><th style="width:50px;">編號</th><th>第二層名稱</th><th style="width:90px;">編輯/刪除</th><th style="width:40px;">選擇</th></tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>+</td>
-                                <td><input type="text" id="inputL2" placeholder="新增第二層名稱" style="width:100%; box-sizing:border-box; padding:4px;"></td>
-                                <td colspan="2" style="text-align:center;"><button class="btn" onclick="addLevel2()">+新增</button></td>
-                            </tr>
-                        </tbody>
-                        <tbody id="tableBodyL2">
-                            <tr><td colspan="4" style="text-align:center; color:#888;">請點擊左側第一層的 [ >> ] 按鈕</td></tr>
-                        </tbody>
-                    </table>
+            <!-- 三層課程名稱設定區塊 -->
+            <div class="form-card">
+                <h3>⚙️ 三層課程名稱結構設定</h3>
+                <div style="margin-bottom:15px; font-size:13px; color:#495057;">
+                    💡 點擊各層項目右側的 <strong>[ >> ]</strong> 按鈕，即可連動並建立或檢視對應的子層級。
                 </div>
-
-                <!-- 第三層 -->
-                <div class="level-table-box">
-                    <h3 id="titleL3">第三層名稱設定 (請先選擇第二層)</h3>
-                    <table>
-                        <thead>
-                            <tr><th style="width:50px;">編號</th><th>第三層名稱</th><th style="width:90px;">編輯/刪除</th></tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>+</td>
-                                <td><input type="text" id="inputL3" placeholder="新增第三層名稱" style="width:100%; box-sizing:border-box; padding:4px;"></td>
-                                <td style="text-align:center;"><button class="btn" onclick="addLevel3()">+新增</button></td>
-                            </tr>
-                        </tbody>
-                        <tbody id="tableBodyL3">
-                            <tr><td colspan="3" style="text-align:center; color:#888;">請點擊中間第二層的 [ >> ] 按鈕</td></tr>
-                        </tbody>
-                    </table>
+                <div class="levels-container">
+                    <!-- 第一層 -->
+                    <div class="level-table-box">
+                        <h3>第一層類別</h3>
+                        <table>
+                            <thead><tr><th style="width:40px;">#</th><th>名稱</th><th style="width:80px;">改/刪</th><th style="width:40px;">選</th></tr></thead>
+                            <tbody>
+                                <tr>
+                                    <td>+</td>
+                                    <td><input type="text" id="inputL1" placeholder="新增第一層" style="width:100%; box-sizing:border-box; padding:4px;"></td>
+                                    <td colspan="2" style="text-align:center;"><button class="btn" onclick="addLevel1()">新增</button></td>
+                                </tr>
+                            </tbody>
+                            <tbody id="tableBodyL1"></tbody>
+                        </table>
+                    </div>
+                    <!-- 第二層 -->
+                    <div class="level-table-box">
+                        <h3 id="titleL2">第二層名稱 (請先選第一層)</h3>
+                        <table>
+                            <thead><tr><th style="width:40px;">#</th><th>名稱</th><th style="width:80px;">改/刪</th><th style="width:40px;">選</th></tr></thead>
+                            <tbody>
+                                <tr>
+                                    <td>+</td>
+                                    <td><input type="text" id="inputL2" placeholder="新增第二層" style="width:100%; box-sizing:border-box; padding:4px;"></td>
+                                    <td colspan="2" style="text-align:center;"><button class="btn" onclick="addLevel2()">新增</button></td>
+                                </tr>
+                            </tbody>
+                            <tbody id="tableBodyL2"><tr><td colspan="4" style="text-align:center; color:#888;">請點擊左側 [ >> ]</td></tr></tbody>
+                        </table>
+                    </div>
+                    <!-- 第三層 -->
+                    <div class="level-table-box">
+                        <h3 id="titleL3">第三層名稱 (請先選第二層)</h3>
+                        <table>
+                            <thead><tr><th style="width:40px;">#</th><th>名稱</th><th style="width:70px;">改/刪</th></tr></thead>
+                            <tbody>
+                                <tr>
+                                    <td>+</td>
+                                    <td><input type="text" id="inputL3" placeholder="新增第三層" style="width:100%; box-sizing:border-box; padding:4px;"></td>
+                                    <td style="text-align:center;"><button class="btn" onclick="addLevel3()">新增</button></td>
+                                </tr>
+                            </tbody>
+                            <tbody id="tableBodyL3"><tr><td colspan="3" style="text-align:center; color:#888;">請點擊中間 [ >> ]</td></tr></tbody>
+                        </table>
+                    </div>
                 </div>
-
             </div>
         </div>
 
-        <!-- 2. 區間週期排課 -->
+        <!-- 2. 排課與衝堂檢視 -->
         <div id="tabCourses" class="tab-content">
             <div class="form-card">
-                <h3>建立區間與週期課程</h3>
+                <h3>建立週期課程 (具備教室防衝堂檢測)</h3>
                 <div class="form-grid">
                     <div class="form-group"><label>第一層</label><select id="cLevel1" onchange="loadSelectL2()"></select></div>
                     <div class="form-group"><label>第二層</label><select id="cLevel2" onchange="loadSelectL3()"></select></div>
@@ -146,7 +149,7 @@
                     <div class="form-group"><label>週期結束日期</label><input type="date" id="cEndDate" value="2026-08-31"></div>
                 </div>
                 <div class="form-group" style="margin-bottom:15px;">
-                    <label>選擇上課星期 (可複選)</label>
+                    <label>上課星期 (可複選)</label>
                     <div style="display:flex; gap:15px; margin-top:5px;">
                         <label><input type="checkbox" name="cDays" value="1" checked> 週一</label>
                         <label><input type="checkbox" name="cDays" value="2"> 週二</label>
@@ -157,11 +160,11 @@
                         <label><input type="checkbox" name="cDays" value="7"> 週日</label>
                     </div>
                 </div>
-                <button class="btn btn-blue" onclick="createPeriodCourses()">批次產生區間週期課表</button>
+                <button class="btn btn-blue" onclick="createPeriodCourses()">批次產生課表 (自動防衝堂)</button>
             </div>
 
             <div class="form-card">
-                <h3>📅 課表總覽與維護</h3>
+                <h3>📅 每週課表總覽</h3>
                 <div class="schedule-grid" id="scheduleGridContainer" style="margin-bottom:20px;"></div>
                 <h4>所有產生之課程明細</h4>
                 <table>
@@ -171,7 +174,7 @@
             </div>
         </div>
 
-        <!-- 3. 學生資料與 Excel 匯入 -->
+        <!-- 3. 學生資料管理 -->
         <div id="tabStudents" class="tab-content">
             <div class="form-card">
                 <h3>🎓 學生資料管理與 Excel 匯入</h3>
@@ -188,7 +191,7 @@
             </div>
 
             <div class="form-card">
-                <h3>現有學生名單 (可直接編輯或刪除)</h3>
+                <h3>現有學生名單 (支援直接修改與刪除)</h3>
                 <table>
                     <thead>
                         <tr><th>姓名</th><th>英文名</th><th>學校</th><th>年級</th><th>家長姓名</th><th>家長手機</th><th>登入密碼</th><th>操作</th></tr>
@@ -250,6 +253,7 @@
         }
 
         window.onload = async () => {
+            await loadClassrooms();
             await loadLevel1();
             await loadMeta();
             loadCourses();
@@ -257,32 +261,55 @@
             loadEnrollments();
         };
 
-        // --- 三層聯動表格邏輯 (修正狀態被洗掉的問題) ---
+        // --- 教室管理邏輯 ---
+        async function loadClassrooms() {
+            const res = await fetch('/api/classrooms');
+            const data = await res.json();
+            document.getElementById('tableBodyClassrooms').innerHTML = data.map((c, idx) => `
+                <tr>
+                    <td style="text-align:center;">${idx+1}</td>
+                    <td>${c.name}</td>
+                    <td class="actions"><button class="btn btn-danger" style="padding:2px 6px;" onclick="deleteClassroom(${c.id})">刪除</button></td>
+                </tr>
+            `).join('');
+            loadMeta();
+        }
+
+        async function addClassroom() {
+            const name = document.getElementById('inputClassroomName').value.trim();
+            if(!name) return alert('請輸入教室名稱');
+            await fetch('/api/classrooms', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name}) });
+            document.getElementById('inputClassroomName').value = '';
+            loadClassrooms();
+        }
+
+        async function deleteClassroom(id) {
+            if(!confirm('確定刪除此教室？')) return;
+            await fetch(`/api/classrooms/${id}`, { method: 'DELETE' });
+            loadClassrooms();
+        }
+
+        // --- 三層聯動表格邏輯 ---
         async function loadLevel1() {
             const res = await fetch('/api/levels/level1');
             const data = await res.json();
             document.getElementById('tableBodyL1').innerHTML = data.map((i, idx) => `
                 <tr style="${selectedL1Id==i.id?'background:#e7f1ff;':''}">
-                    <td style="text-align:center;">${String(idx+1).padStart(2,'0')}</td>
+                    <td style="text-align:center;">${idx+1}</td>
                     <td>${i.name}</td>
                     <td class="actions">
-                        <button class="btn" style="padding:2px 6px;" onclick="editLevel('level1', ${i.id}, '${i.name}')">改</button>
-                        <button class="btn btn-danger" style="padding:2px 6px;" onclick="deleteLevel('level1', ${i.id})">刪</button>
+                        <button class="btn" style="padding:2px 5px;" onclick="editLevel('level1', ${i.id}, '${i.name}')">改</button>
+                        <button class="btn btn-danger" style="padding:2px 5px;" onclick="deleteLevel('level1', ${i.id})">刪</button>
                     </td>
-                    <td class="actions">
-                        <button class="btn btn-arrow" onclick="selectL1(${i.id}, '${i.name}')">&gt;&gt;</button>
-                    </td>
+                    <td class="actions"><button class="btn btn-arrow" onclick="selectL1(${i.id}, '${i.name}')">&gt;&gt;</button></td>
                 </tr>
             `).join('');
 
-            const cL1 = document.getElementById('cLevel1');
-            cL1.innerHTML = data.map(i => `<option value="${i.id}">${i.name}</option>`).join('');
+            document.getElementById('cLevel1').innerHTML = data.map(i => `<option value="${i.id}">${i.name}</option>`).join('');
             
-            // 如果尚未選擇第一層且有資料，預設選第一筆
             if(data.length > 0 && !selectedL1Id) {
                 await selectL1(data[0].id, data[0].name);
             } else if (selectedL1Id) {
-                // 重新載入時維持當前第二層資料，不隨意清空
                 await refreshLevel2View();
             }
         }
@@ -290,29 +317,13 @@
         async function selectL1(id, name) {
             selectedL1Id = id;
             selectedL1Name = name;
-            selectedL2Id = null; // 切換第一層時才重置第二層
+            selectedL2Id = null;
             selectedL2Name = '';
 
-            // 更新第一層高亮
-            const res1 = await fetch('/api/levels/level1');
-            const data1 = await res1.json();
-            document.getElementById('tableBodyL1').innerHTML = data1.map((i, idx) => `
-                <tr style="${selectedL1Id==i.id?'background:#e7f1ff;':''}">
-                    <td style="text-align:center;">${String(idx+1).padStart(2,'0')}</td>
-                    <td>${i.name}</td>
-                    <td class="actions">
-                        <button class="btn" style="padding:2px 6px;" onclick="editLevel('level1', ${i.id}, '${i.name}')">改</button>
-                        <button class="btn btn-danger" style="padding:2px 6px;" onclick="deleteLevel('level1', ${i.id})">刪</button>
-                    </td>
-                    <td class="actions">
-                        <button class="btn btn-arrow" onclick="selectL1(${i.id}, '${i.name}')">&gt;&gt;</button>
-                    </td>
-                </tr>
-            `).join('');
-
-            document.getElementById('titleL2').innerText = `第二層名稱設定 (已選: ${name})`;
-            document.getElementById('titleL3').innerText = `第三層名稱設定 (請先選擇第二層)`;
-            document.getElementById('tableBodyL3').innerHTML = `<tr><td colspan="3" style="text-align:center; color:#888;">請點擊中間第二層的 [ >> ] 按鈕</td></tr>`;
+            await loadLevel1();
+            document.getElementById('titleL2').innerText = `第二層名稱 (已選: ${name})`;
+            document.getElementById('titleL3').innerText = `第三層名稱 (請先選第二層)`;
+            document.getElementById('tableBodyL3').innerHTML = `<tr><td colspan="3" style="text-align:center; color:#888;">請點擊中間 [ >> ]</td></tr>`;
 
             await refreshLevel2View();
             loadSelectL2();
@@ -324,15 +335,13 @@
             const data = await res.json();
             document.getElementById('tableBodyL2').innerHTML = data.map((i, idx) => `
                 <tr style="${selectedL2Id==i.id?'background:#e7f1ff;':''}">
-                    <td style="text-align:center;">${String(idx+1).padStart(2,'0')}</td>
+                    <td style="text-align:center;">${idx+1}</td>
                     <td>${i.name}</td>
                     <td class="actions">
-                        <button class="btn" style="padding:2px 6px;" onclick="editLevel('level2', ${i.id}, '${i.name}')">改</button>
-                        <button class="btn btn-danger" style="padding:2px 6px;" onclick="deleteLevel('level2', ${i.id})">刪</button>
+                        <button class="btn" style="padding:2px 5px;" onclick="editLevel('level2', ${i.id}, '${i.name}')">改</button>
+                        <button class="btn btn-danger" style="padding:2px 5px;" onclick="deleteLevel('level2', ${i.id})">刪</button>
                     </td>
-                    <td class="actions">
-                        <button class="btn btn-arrow" onclick="selectL2(${i.id}, '${i.name}')">&gt;&gt;</button>
-                    </td>
+                    <td class="actions"><button class="btn btn-arrow" onclick="selectL2(${i.id}, '${i.name}')">&gt;&gt;</button></td>
                 </tr>
             `).join('');
         }
@@ -340,19 +349,18 @@
         async function selectL2(id, name) {
             selectedL2Id = id;
             selectedL2Name = name;
-            await refreshLevel2View(); // 重新渲染以保持第二層高亮
+            await refreshLevel2View();
 
-            document.getElementById('titleL3').innerText = `第三層名稱設定 (已選: ${name})`;
-
+            document.getElementById('titleL3').innerText = `第三層名稱 (已選: ${name})`;
             const res = await fetch(`/api/levels/level3?l2_id=${id}`);
             const data = await res.json();
             document.getElementById('tableBodyL3').innerHTML = data.map((i, idx) => `
                 <tr>
-                    <td style="text-align:center;">${String(idx+1).padStart(2,'0')}</td>
+                    <td style="text-align:center;">${idx+1}</td>
                     <td>${i.name}</td>
                     <td class="actions">
-                        <button class="btn" style="padding:2px 6px;" onclick="editLevel('level3', ${i.id}, '${i.name}')">改</button>
-                        <button class="btn btn-danger" style="padding:2px 6px;" onclick="deleteLevel('level3', ${i.id})">刪</button>
+                        <button class="btn" style="padding:2px 5px;" onclick="editLevel('level3', ${i.id}, '${i.name}')">改</button>
+                        <button class="btn btn-danger" style="padding:2px 5px;" onclick="deleteLevel('level3', ${i.id})">刪</button>
                     </td>
                 </tr>
             `).join('');
@@ -362,25 +370,25 @@
 
         async function addLevel1() {
             const name = document.getElementById('inputL1').value.trim();
-            if(!name) return alert('請輸入第一層名稱');
+            if(!name) return alert('請輸入名稱');
             await fetch('/api/levels/level1', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name}) });
             document.getElementById('inputL1').value = '';
             loadLevel1();
         }
 
         async function addLevel2() {
-            if(!selectedL1Id) return alert('請先點擊第一層右側的 [ >> ] 選擇父層類別');
+            if(!selectedL1Id) return alert('請先選擇第一層');
             const name = document.getElementById('inputL2').value.trim();
-            if(!name) return alert('請輸入第二層名稱');
+            if(!name) return alert('請輸入名稱');
             await fetch('/api/levels/level2', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name, level1_id: selectedL1Id}) });
             document.getElementById('inputL2').value = '';
             await refreshLevel2View();
         }
 
         async function addLevel3() {
-            if(!selectedL2Id) return alert('請先點擊第二層右側的 [ >> ] 選擇父層類別');
+            if(!selectedL2Id) return alert('請先選擇第二層');
             const name = document.getElementById('inputL3').value.trim();
-            if(!name) return alert('請輸入第三層名稱');
+            if(!name) return alert('請輸入名稱');
             await fetch('/api/levels/level3', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name, level2_id: selectedL2Id}) });
             document.getElementById('inputL3').value = '';
             selectL2(selectedL2Id, selectedL2Name);
@@ -395,14 +403,13 @@
         }
 
         async function deleteLevel(level, id) {
-            if(!confirm('確定要刪除嗎？若有關聯子項目或課程可能會受影響。')) return;
+            if(!confirm('確定要刪除嗎？')) return;
             await fetch(`/api/levels/${level}/${id}`, { method: 'DELETE' });
             if(level === 'level1') { selectedL1Id = null; selectedL2Id = null; }
             if(level === 'level2') { selectedL2Id = null; }
             loadLevel1();
         }
 
-        // 排課連動下拉
         async function loadSelectL2() {
             const l1_id = document.getElementById('cLevel1').value;
             if(!l1_id) return;
@@ -414,10 +421,7 @@
 
         async function loadSelectL3() {
             const l2_id = document.getElementById('cLevel2').value;
-            if(!l2_id) {
-                document.getElementById('cLevel3').innerHTML = '';
-                return;
-            }
+            if(!l2_id) { document.getElementById('cLevel3').innerHTML = ''; return; }
             const res = await fetch(`/api/levels/level3?l2_id=${l2_id}`);
             const data = await res.json();
             document.getElementById('cLevel3').innerHTML = data.map(i => `<option value="${i.id}">${i.name}</option>`).join('');
@@ -430,7 +434,7 @@
             document.getElementById('cClassroom').innerHTML = data.classrooms.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
         }
 
-        // --- 課程與週期 ---
+        // --- 週期排課與衝堂偵測 ---
         async function createPeriodCourses() {
             const days = Array.from(document.querySelectorAll('input[name="cDays"]:checked')).map(el => parseInt(el.value));
             const data = {
@@ -447,9 +451,11 @@
             };
             const res = await fetch('/api/courses/create-period', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) });
             const result = await res.json();
-            if(result.success) {
+            if(res.ok && result.success) {
                 alert(`成功產生 ${result.count} 筆課表！`);
                 loadCourses();
+            } else {
+                alert(result.error || '排課失敗');
             }
         }
 
@@ -469,7 +475,7 @@
                 const dayCourses = courses.filter(c => c.day_of_week == i);
                 let colHtml = `<div class="schedule-col"><div class="schedule-col-header">${daysMap[i-1]}</div><div class="schedule-col-body">`;
                 dayCourses.forEach(c => {
-                    colHtml += `<div class="course-card"><strong>${c.name}</strong><div>${c.start_date}</div><div>${c.start_time}~${c.end_time}</div></div>`;
+                    colHtml += `<div class="course-card"><strong>${c.name}</strong><div>${c.classroom_name || ''}</div><div>${c.start_date}</div><div>${c.start_time}~${c.end_time}</div></div>`;
                 });
                 colHtml += `</div></div>`;
                 container.innerHTML += colHtml;
@@ -484,7 +490,7 @@
             loadCourses();
         }
 
-        // --- 學生管理 (完整支援密碼修改與儲存) ---
+        // --- 學生管理 (完全修復修改與刪除) ---
         function importStudentsExcel() {
             const fileInput = document.getElementById('excelFile');
             if(fileInput.files.length === 0) return alert('請選擇檔案');
@@ -505,13 +511,13 @@
             const students = await res.json();
             document.getElementById('studentTableBody').innerHTML = students.map(s => `
                 <tr>
-                    <td><input type="text" id="s_name_${s.id}" value="${s.chinese_name}" style="width:80px;"></td>
-                    <td><input type="text" id="s_ename_${s.id}" value="${s.english_name||''}" style="width:80px;"></td>
-                    <td><input type="text" id="s_school_${s.id}" value="${s.school||''}" style="width:80px;"></td>
-                    <td><input type="text" id="s_grade_${s.id}" value="${s.grade||''}" style="width:60px;"></td>
-                    <td><input type="text" id="s_pname_${s.id}" value="${s.parent_name||''}" style="width:80px;"></td>
-                    <td><input type="text" id="s_pphone_${s.id}" value="${s.parent_phone}" style="width:100px;"></td>
-                    <td><input type="text" id="s_pwd_${s.id}" value="${s.password||'1234'}" style="width:80px;"></td>
+                    <td><input type="text" id="s_name_${s.id}" value="${s.chinese_name || ''}" style="width:80px;"></td>
+                    <td><input type="text" id="s_ename_${s.id}" value="${s.english_name || ''}" style="width:80px;"></td>
+                    <td><input type="text" id="s_school_${s.id}" value="${s.school || ''}" style="width:80px;"></td>
+                    <td><input type="text" id="s_grade_${s.id}" value="${s.grade || ''}" style="width:60px;"></td>
+                    <td><input type="text" id="s_pname_${s.id}" value="${s.parent_name || ''}" style="width:80px;"></td>
+                    <td><input type="text" id="s_pphone_${s.id}" value="${s.parent_phone || ''}" style="width:100px;"></td>
+                    <td><input type="text" id="s_pwd_${s.id}" value="${s.password || '1234'}" style="width:80px;"></td>
                     <td>
                         <button class="btn" style="padding:2px 6px;" onclick="updateStudent(${s.id})">儲存</button>
                         <button class="btn btn-danger" style="padding:2px 6px;" onclick="deleteStudent(${s.id})">刪</button>
@@ -525,8 +531,6 @@
             const s = {
                 chinese_name: document.getElementById(`s_name_${id}`).value,
                 english_name: document.getElementById(`s_ename_${id}`).value,
-                gender: '',
-                birth_date: '',
                 school: document.getElementById(`s_school_${id}`).value,
                 grade: document.getElementById(`s_grade_${id}`).value,
                 parent_name: document.getElementById(`s_pname_${id}`).value,

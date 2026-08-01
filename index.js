@@ -1,5 +1,64 @@
+async function initDB(db) {
+  await db.prepare(`CREATE TABLE IF NOT EXISTS course_level1 (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT);`).run();
+  await db.prepare(`CREATE TABLE IF NOT EXISTS course_level2 (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, level1_id INTEGER);`).run();
+  await db.prepare(`CREATE TABLE IF NOT EXISTS course_level3 (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, level2_id INTEGER);`).run();
+  await db.prepare(`CREATE TABLE IF NOT EXISTS classrooms (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT);`).run();
+  await db.prepare(`CREATE TABLE IF NOT EXISTS teachers (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT);`).run();
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS students (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      chinese_name TEXT,
+      english_name TEXT,
+      gender TEXT,
+      birth_date TEXT,
+      school TEXT,
+      grade TEXT,
+      parent_name TEXT,
+      parent_phone TEXT,
+      password TEXT DEFAULT '1234'
+    );
+  `).run();
+  
+  // 自動補齊可能遺漏的欄位，徹底解決 D1_ERROR 欄位不存在問題
+  const cols = [
+    'parent_phone TEXT', 'password TEXT DEFAULT "1234"', 'english_name TEXT', 
+    'gender TEXT', 'birth_date TEXT', 'school TEXT', 'grade TEXT', 'parent_name TEXT'
+  ];
+  for (let col of cols) {
+    try { await db.prepare(`ALTER TABLE students ADD COLUMN ${col};`).run(); } catch(e) {}
+  }
+
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS courses (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      level1_id INTEGER,
+      level2_id INTEGER,
+      level3_id INTEGER,
+      name TEXT,
+      teacher_id INTEGER,
+      classroom_id INTEGER,
+      day_of_week INTEGER,
+      start_time TEXT,
+      end_time TEXT,
+      start_date TEXT,
+      end_date TEXT
+    );
+  `).run();
+  
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS enrollments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id INTEGER,
+      course_id INTEGER,
+      enroll_month TEXT,
+      fee INTEGER
+    );
+  `).run();
+}
+
 export default {
   async fetch(request, env, ctx) {
+    await initDB(env.DB);
     const url = new URL(request.url);
     const path = url.pathname;
     const method = request.method;
@@ -10,11 +69,29 @@ export default {
     });
 
     try {
-      // 1. 三層課程名稱管理 API
+      // 1. 教室管理 API
+      if (path === '/api/classrooms') {
+        if (method === 'GET') {
+          const { results } = await env.DB.prepare('SELECT * FROM classrooms ORDER BY id ASC').all();
+          return jsonRes(results);
+        }
+        if (method === 'POST') {
+          const { name } = await request.json();
+          await env.DB.prepare('INSERT INTO classrooms (name) VALUES (?)').bind(name).run();
+          return jsonRes({ success: true });
+        }
+      }
+      if (path.startsWith('/api/classrooms/') && method === 'DELETE') {
+        const id = path.split('/')[3];
+        await env.DB.prepare('DELETE FROM classrooms WHERE id = ?').bind(id).run();
+        return jsonRes({ success: true });
+      }
+
+      // 2. 三層課程名稱管理 API
       if (path.startsWith('/api/levels/')) {
         const parts = path.split('/');
-        const level = parts[3]; // level1, level2, level3
-        const subAction = parts[4]; // edit, delete
+        const level = parts[3]; 
+        const subAction = parts[4]; 
 
         if (method === 'GET') {
           if (level === 'level1') {
@@ -49,35 +126,28 @@ export default {
 
         if (method === 'PUT') {
           const body = await request.json();
-          const id = subAction;
-          await env.DB.prepare(`UPDATE course_${level} SET name = ? WHERE id = ?`).bind(body.name, id).run();
+          await env.DB.prepare(`UPDATE course_${level} SET name = ? WHERE id = ?`).bind(body.name, subAction).run();
           return jsonRes({ success: true });
         }
 
         if (method === 'DELETE') {
-          const id = subAction;
-          await env.DB.prepare(`DELETE FROM course_${level} WHERE id = ?`).bind(id).run();
+          await env.DB.prepare(`DELETE FROM course_${level} WHERE id = ?`).bind(subAction).run();
           return jsonRes({ success: true });
         }
       }
 
-      // 基礎選單
       if (path === '/api/meta' && method === 'GET') {
         const classrooms = (await env.DB.prepare('SELECT * FROM classrooms').all()).results;
         const teachers = (await env.DB.prepare('SELECT * FROM teachers').all()).results;
         return jsonRes({ classrooms, teachers });
       }
 
-      // 2. 課程與區間週期管理
+      // 3. 課程與具備衝堂檢測的週期排課
       if (path === '/api/courses' && method === 'GET') {
         const query = `
           SELECT courses.*, 
-                 l1.name as l1_name, l2.name as l2_name, l3.name as l3_name,
                  teachers.name as teacher_name, classrooms.name as classroom_name
           FROM courses
-          LEFT JOIN course_level1 l1 ON courses.level1_id = l1.id
-          LEFT JOIN course_level2 l2 ON courses.level2_id = l2.id
-          LEFT JOIN course_level3 l3 ON courses.level3_id = l3.id
           LEFT JOIN teachers ON courses.teacher_id = teachers.id
           LEFT JOIN classrooms ON courses.classroom_id = classrooms.id
           ORDER BY courses.start_date ASC, courses.start_time ASC
@@ -98,10 +168,6 @@ export default {
         
         let curr = new Date(start_date);
         let end = new Date(end_date);
-        let stmt = env.DB.prepare(`
-          INSERT INTO courses (level1_id, level2_id, level3_id, name, teacher_id, classroom_id, day_of_week, start_time, end_time, start_date, end_date)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `);
 
         const l1Obj = await env.DB.prepare('SELECT name FROM course_level1 WHERE id = ?').bind(level1_id).first();
         const l2Obj = await env.DB.prepare('SELECT name FROM course_level2 WHERE id = ?').bind(level2_id).first();
@@ -109,15 +175,38 @@ export default {
         const courseName = `${l1Obj?.name || ''} - ${l2Obj?.name || ''} - ${l3Obj?.name || ''}`;
 
         let batchQueries = [];
+        let datesToCheck = [];
+
         while (curr <= end) {
           let jsDay = curr.getDay();
           let dbDay = jsDay === 0 ? 7 : jsDay;
-
           if (days.includes(dbDay)) {
-            let dateStr = curr.toISOString().split('T')[0];
-            batchQueries.push(stmt.bind(level1_id, level2_id, level3_id, courseName, teacher_id, classroom_id, dbDay, start_time, end_time, dateStr, dateStr));
+            datesToCheck.push({ dateStr: curr.toISOString().split('T')[0], dbDay });
           }
           curr.setDate(curr.getDate() + 1);
+        }
+
+        // 檢查教室衝堂
+        for (let item of datesToCheck) {
+          const { results: existing } = await env.DB.prepare(
+            'SELECT courses.*, classrooms.name as c_name FROM courses LEFT JOIN classrooms ON courses.classroom_id = classrooms.id WHERE courses.classroom_id = ? AND courses.start_date = ?'
+          ).bind(classroom_id, item.dateStr).all();
+
+          for (let ex of existing) {
+            // 時間區間重疊判斷
+            if (start_time < ex.end_time && end_time > ex.start_time) {
+              return jsonRes({ 
+                success: false, 
+                error: `衝堂警告：${item.dateStr} 該教室已被「${ex.name}」(${ex.start_time}~${ex.end_time}) 佔用！` 
+              }, 400);
+            }
+          }
+
+          let stmt = env.DB.prepare(`
+            INSERT INTO courses (level1_id, level2_id, level3_id, name, teacher_id, classroom_id, day_of_week, start_time, end_time, start_date, end_date)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `);
+          batchQueries.push(stmt.bind(level1_id, level2_id, level3_id, courseName, teacher_id, classroom_id, item.dbDay, start_time, end_time, item.dateStr, item.dateStr));
         }
 
         if (batchQueries.length > 0) {
@@ -126,7 +215,7 @@ export default {
         return jsonRes({ success: true, count: batchQueries.length });
       }
 
-      // 3. 學生管理
+      // 4. 學生管理
       if (path === '/api/students' && method === 'GET') {
         const { results } = await env.DB.prepare('SELECT * FROM students ORDER BY id DESC').all();
         return jsonRes(results);
@@ -139,7 +228,7 @@ export default {
           batch.push(env.DB.prepare(`
             INSERT INTO students (chinese_name, english_name, gender, birth_date, school, grade, parent_name, parent_phone, password)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, '1234'))
-          `).bind(s.chinese_name, s.english_name || '', s.gender || '', s.birth_date || '', s.school || '', s.grade || '', s.parent_name || '', s.parent_phone, s.password || '1234'));
+          `).bind(s.chinese_name, s.english_name || '', s.gender || '', s.birth_date || '', s.school || '', s.grade || '', s.parent_name || '', s.parent_phone || '', s.password || '1234'));
         }
         await env.DB.batch(batch);
         return jsonRes({ success: true, count: batch.length });
@@ -149,8 +238,8 @@ export default {
         const id = path.split('/')[3];
         const s = await request.json();
         await env.DB.prepare(`
-          UPDATE students SET chinese_name=?, english_name=?, gender=?, birth_date=?, school=?, grade=?, parent_name=?, parent_phone=?, password=? WHERE id=?
-        `).bind(s.chinese_name, s.english_name || '', s.gender || '', s.birth_date || '', s.school || '', s.grade || '', s.parent_name || '', s.parent_phone || '', s.password || '1234', id).run();
+          UPDATE students SET chinese_name=?, english_name=?, school=?, grade=?, parent_name=?, parent_phone=?, password=? WHERE id=?
+        `).bind(s.chinese_name, s.english_name || '', s.school || '', s.grade || '', s.parent_name || '', s.parent_phone || '', s.password || '1234', id).run();
         return jsonRes({ success: true });
       }
 
@@ -166,7 +255,7 @@ export default {
         return jsonRes({ success: true });
       }
 
-      // 4. 課程報名與個別費用
+      // 5. 課程報名與費用
       if (path === '/api/enrollments' && method === 'GET') {
         const month = url.searchParams.get('month') || '2026-08';
         const query = `
@@ -209,7 +298,7 @@ export default {
         return jsonRes({ success: true, count: batch.length });
       }
 
-      // 家長端
+      // 家長端登入
       if (path === '/api/parent/login' && method === 'POST') {
         const { phone, password } = await request.json();
         const student = await env.DB.prepare('SELECT * FROM students WHERE parent_phone = ? AND password = ?').bind(phone, password || '1234').first();
