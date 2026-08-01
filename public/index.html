@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>補習班教師點名與學費管理系統</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; max-width: 750px; margin: auto; background-color: #f4f7f6; }
+        body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: auto; background-color: #f4f7f6; }
         .box { background: white; border: 1px solid #ddd; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         select, button { padding: 10px; margin-top: 10px; width: 100%; font-size: 16px; border-radius: 4px; border: 1px solid #ccc; }
         button { background-color: #0070f3; color: white; border: none; cursor: pointer; font-weight: bold; }
@@ -25,14 +25,14 @@
     
     <!-- 老師點名專區 -->
     <div class="box teacher-box">
-        <h3>👨‍🏫 教師點名專區</h3>
+        <h3>👨‍🏫 老師專用點名介面</h3>
         <label>1. 選擇學生：</label>
         <select id="studentSelect" onchange="onStudentChange()">
             <option value="">載入學生中...</option>
         </select>
 
         <div id="checkinSection" style="display:none; margin-top: 15px;">
-            <label>2. 選擇上課班別：</label>
+            <label>2. 選擇上課班別（已點名課程會自動鎖定）：</label>
             <select id="classSelect">
                 <option value="">請選擇班別</option>
             </select>
@@ -49,21 +49,22 @@
             <table>
                 <thead>
                     <tr>
-                        <th>學生編號</th>
+                        <th>學生姓名</th>
                         <th>班別</th>
                         <th>單堂費用</th>
+                        <th>簽到時間</th>
                         <th>操作</th>
                     </tr>
                 </thead>
                 <tbody id="reportTableBody">
-                    <tr><td colspan="4" style="text-align: center; color: #777;">載入中...</td></tr>
+                    <tr><td colspan="5" style="text-align: center; color: #777;">載入中...</td></tr>
                 </tbody>
             </table>
         </div>
     </div>
 
     <script>
-        // 頁面載入時初始化：載入學生名單與報表
+        // 頁面載入時初始化：載入學生清單與報表
         window.onload = async () => {
             await loadStudents();
             loadReport();
@@ -79,7 +80,7 @@
                 students.forEach(s => {
                     const option = document.createElement('option');
                     option.value = s.student_id;
-                    option.textContent = s.student_id;
+                    option.textContent = s.name ? `${s.name} (${s.student_id})` : s.student_id;
                     selectBox.appendChild(option);
                 });
             } catch (err) {
@@ -109,11 +110,13 @@
                     const option = document.createElement('option');
                     option.value = c.id;
                     if (c.is_checked_in > 0) {
-                        option.textContent = `${c.name} (已點名)`;
-                        option.disabled = true; // 已經點過名的課程鎖定
+                        option.textContent = `${c.name} (已點名，無法重複)`;
+                        option.disabled = true; // 鎖定已點名課程，防止重複點名
                         option.style.color = "#999";
                     } else {
                         option.textContent = `${c.name} (單堂費用: $${c.cost_per_session})`;
+                        option.disabled = false;
+                        option.style.color = "#000";
                     }
                     selectBox.appendChild(option);
                 });
@@ -146,7 +149,7 @@
                 if(result.success) {
                     msg.innerText = "點名成功！";
                     msg.style.color = "green";
-                    onStudentChange(); // 重新整理該學生的課表選單狀態
+                    onStudentChange(); // 重新整理該學生的課表選單狀態，將該課程鎖定
                     loadReport();      // 自動更新下方報表
                 } else {
                     msg.innerText = result.error || "點名失敗";
@@ -180,13 +183,13 @@
 
         async function loadReport() {
             const tbody = document.getElementById('reportTableBody');
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">載入中...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">載入中...</td></tr>';
             try {
                 const response = await fetch('/api/report');
                 const records = await response.json();
 
                 if (records.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #777;">目前尚無點名紀錄</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #777;">目前尚無點名紀錄</td></tr>';
                     return;
                 }
 
@@ -194,15 +197,16 @@
                 records.forEach(r => {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
-                        <td>${r.student_id}</td>
+                        <td>${r.student_name}</td>
                         <td>${r.class_name}</td>
                         <td>$${r.cost_per_session}</td>
+                        <td>${r.checkin_time}</td>
                         <td><button class="cancel-btn" onclick="cancelCheckin(${r.id})">取消點名</button></td>
                     `;
                     tbody.appendChild(tr);
                 });
             } catch (err) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: red;">載入報表失敗</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: red;">載入報表失敗</td></tr>';
             }
         }
     </script>
