@@ -10,38 +10,65 @@ export default {
     });
 
     try {
-      // 1. 三層課程名稱管理 API (取得與新增)
-      if (path.startsWith('/api/levels/') && method === 'GET') {
-        const level = path.split('/')[3]; // level1, level2, level3
-        const { results } = await env.DB.prepare(`SELECT * FROM course_${level}`).all();
-        return jsonRes(results);
-      }
-      if (path.startsWith('/api/levels/') && method === 'POST') {
-        const level = path.split('/')[3];
-        const { name } = await request.json();
-        if (!name) return jsonRes({ success: false, error: '名稱不能為空' }, 400);
-        await env.DB.prepare(`INSERT OR IGNORE INTO course_${level} (name) VALUES (?)`).bind(name).run();
-        return jsonRes({ success: true });
+      // 1. 三層課程名稱管理 API (支援層級、修改、刪除)
+      if (path.startsWith('/api/levels/')) {
+        const parts = path.split('/');
+        const level = parts[3]; // level1, level2, level3
+        const subAction = parts[4]; // edit, delete
+
+        if (method === 'GET') {
+          if (level === 'level1') {
+            const { results } = await env.DB.prepare('SELECT * FROM course_level1').all();
+            return jsonRes(results);
+          } else if (level === 'level2') {
+            const l1_id = url.searchParams.get('l1_id');
+            const query = l1_id ? 'SELECT * FROM course_level2 WHERE level1_id = ?' : 'SELECT * FROM course_level2';
+            const stmt = l1_id ? env.DB.prepare(query).bind(l1_id) : env.DB.prepare(query);
+            const { results } = await stmt.all();
+            return jsonRes(results);
+          } else if (level === 'level3') {
+            const l2_id = url.searchParams.get('l2_id');
+            const query = l2_id ? 'SELECT * FROM course_level3 WHERE level2_id = ?' : 'SELECT * FROM course_level3';
+            const stmt = l2_id ? env.DB.prepare(query).bind(l2_id) : env.DB.prepare(query);
+            const { results } = await stmt.all();
+            return jsonRes(results);
+          }
+        }
+
+        if (method === 'POST') {
+          const body = await request.json();
+          if (level === 'level1') {
+            await env.DB.prepare('INSERT INTO course_level1 (name) VALUES (?)').bind(body.name).run();
+          } else if (level === 'level2') {
+            await env.DB.prepare('INSERT INTO course_level2 (name, level1_id) VALUES (?, ?)').bind(body.name, body.level1_id).run();
+          } else if (level === 'level3') {
+            await env.DB.prepare('INSERT INTO course_level3 (name, level2_id) VALUES (?, ?)').bind(body.name, body.level2_id).run();
+          }
+          return jsonRes({ success: true });
+        }
+
+        if (method === 'PUT') {
+          const body = await request.json();
+          const id = subAction;
+          await env.DB.prepare(`UPDATE course_${level} SET name = ? WHERE id = ?`).bind(body.name, id).run();
+          return jsonRes({ success: true });
+        }
+
+        if (method === 'DELETE') {
+          const id = subAction;
+          await env.DB.prepare(`DELETE FROM course_${level} WHERE id = ?`).bind(id).run();
+          return jsonRes({ success: true });
+        }
       }
 
-      // 取得所有選單基礎資料
+      // 基礎選單
       if (path === '/api/meta' && method === 'GET') {
-        const level1 = (await env.DB.prepare('SELECT * FROM course_level1').all()).results;
-        const level2 = (await env.DB.prepare('SELECT * FROM course_level2').all()).results;
-        const level3 = (await env.DB.prepare('SELECT * FROM course_level3').all()).results;
         const classrooms = (await env.DB.prepare('SELECT * FROM classrooms').all()).results;
         const teachers = (await env.DB.prepare('SELECT * FROM teachers').all()).results;
-        return jsonRes({ level1, level2, level3, classrooms, teachers });
+        return jsonRes({ classrooms, teachers });
       }
 
-      if (path === '/api/meta/add' && method === 'POST') {
-        const { type, name } = await request.json();
-        const table = type === 'teacher' ? 'teachers' : 'classrooms';
-        await env.DB.prepare(`INSERT OR IGNORE INTO ${table} (name) VALUES (?)`).bind(name).run();
-        return jsonRes({ success: true });
-      }
-
-      // 2. 課程與區間週期建立
+      // 2. 課程與區間週期管理 (支援刪除、修改)
       if (path === '/api/courses' && method === 'GET') {
         const query = `
           SELECT courses.*, 
@@ -59,15 +86,16 @@ export default {
         return jsonRes(results);
       }
 
-      // 區間週期排課：自動依照起訖日期與勾選星期產生個別上課日期紀錄
+      if (path.startsWith('/api/courses/') && method === 'DELETE') {
+        const id = path.split('/')[3];
+        await env.DB.prepare('DELETE FROM courses WHERE id = ?').bind(id).run();
+        return jsonRes({ success: true });
+      }
+
       if (path === '/api/courses/create-period' && method === 'POST') {
         const data = await request.json();
         const { level1_id, level2_id, level3_id, teacher_id, classroom_id, days, start_time, end_time, start_date, end_date } = data;
         
-        if (!start_date || !end_date || !days || days.length === 0) {
-          return jsonRes({ success: false, error: '請完整填寫日期區間與選擇星期' }, 400);
-        }
-
         let curr = new Date(start_date);
         let end = new Date(end_date);
         let stmt = env.DB.prepare(`
@@ -98,7 +126,7 @@ export default {
         return jsonRes({ success: true, count: batchQueries.length });
       }
 
-      // 3. 學生管理與 Excel 批次匯入、升降年級
+      // 3. 學生管理 (支援匯入、修改、刪除、升降年級)
       if (path === '/api/students' && method === 'GET') {
         const { results } = await env.DB.prepare('SELECT * FROM students ORDER BY id DESC').all();
         return jsonRes(results);
@@ -117,13 +145,28 @@ export default {
         return jsonRes({ success: true, count: batch.length });
       }
 
+      if (path.startsWith('/api/students/') && method === 'PUT') {
+        const id = path.split('/')[3];
+        const s = await request.json();
+        await env.DB.prepare(`
+          UPDATE students SET chinese_name=?, english_name=?, gender=?, birth_date=?, school=?, grade=?, parent_name=?, parent_phone=? WHERE id=?
+        `).bind(s.chinese_name, s.english_name, s.gender, s.birth_date, s.school, s.grade, s.parent_name, s.parent_phone, id).run();
+        return jsonRes({ success: true });
+      }
+
+      if (path.startsWith('/api/students/') && method === 'DELETE') {
+        const id = path.split('/')[3];
+        await env.DB.prepare('DELETE FROM students WHERE id = ?').bind(id).run();
+        return jsonRes({ success: true });
+      }
+
       if (path === '/api/students/promote' && method === 'POST') {
         const { old_grade, new_grade } = await request.json();
         await env.DB.prepare('UPDATE students SET grade = ? WHERE grade = ?').bind(new_grade, old_grade).run();
         return jsonRes({ success: true });
       }
 
-      // 4. 課程報名與個別費用調整
+      // 4. 課程報名與個別費用
       if (path === '/api/enrollments' && method === 'GET') {
         const month = url.searchParams.get('month') || '2026-08';
         const query = `
@@ -140,7 +183,6 @@ export default {
 
       if (path === '/api/enrollments/save' && method === 'POST') {
         const { student_id, course_id, enroll_month, fee } = await request.json();
-        // 檢查是否已存在，存在則更新，不存在則新增
         const exist = await env.DB.prepare('SELECT id FROM enrollments WHERE student_id = ? AND course_id = ? AND enroll_month = ?').bind(student_id, course_id, enroll_month).first();
         if (exist) {
           await env.DB.prepare('UPDATE enrollments SET fee = ? WHERE id = ?').bind(fee, exist.id).run();
@@ -150,22 +192,24 @@ export default {
         return jsonRes({ success: true });
       }
 
+      if (path.startsWith('/api/enrollments/') && method === 'DELETE') {
+        const id = path.split('/')[3];
+        await env.DB.prepare('DELETE FROM enrollments WHERE id = ?').bind(id).run();
+        return jsonRes({ success: true });
+      }
+
       if (path === '/api/enrollments/copy-last' && method === 'POST') {
         const { target_month, source_month } = await request.json();
         const { results: oldEnrollments } = await env.DB.prepare('SELECT student_id, course_id, fee FROM enrollments WHERE enroll_month = ?').bind(source_month).all();
-        
         let batch = [];
         for (let e of oldEnrollments) {
-          batch.push(env.DB.prepare(`
-            INSERT INTO enrollments (student_id, course_id, enroll_month, fee)
-            VALUES (?, ?, ?, ?)
-          `).bind(e.student_id, e.course_id, target_month, e.fee));
+          batch.push(env.DB.prepare('INSERT INTO enrollments (student_id, course_id, enroll_month, fee) VALUES (?, ?, ?, ?)').bind(e.student_id, e.course_id, target_month, e.fee));
         }
         if (batch.length > 0) await env.DB.batch(batch);
         return jsonRes({ success: true, count: batch.length });
       }
 
-      // 家長端登入
+      // 家長端
       if (path === '/api/parent/login' && method === 'POST') {
         const { phone, password } = await request.json();
         const student = await env.DB.prepare('SELECT * FROM students WHERE parent_phone = ? AND password = ?').bind(phone, password || '1234').first();
