@@ -2,38 +2,66 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>補習班簽到測試</title>
+    <title>補習班簽到與學費管理系統</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; }
-        .box { border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
-        select, button { padding: 8px; margin-top: 10px; }
+        body { font-family: sans-serif; padding: 20px; max-width: 700px; margin: auto; background-color: #f4f7f6; }
+        .box { background: white; border: 1px solid #ddd; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        select, button { padding: 10px; margin-top: 10px; width: 100%; font-size: 16px; border-radius: 4px; border: 1px solid #ccc; }
+        button { background-color: #0070f3; color: white; border: none; cursor: pointer; font-weight: bold; }
+        button:hover { background-color: #0051a2; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 14px; }
+        th { background-color: #f2f2f2; }
+        .admin-btn { background-color: #28a745; margin-top: 5px; }
+        .admin-btn:hover { background-color: #218838; }
     </style>
 </head>
 <body>
-    <h1>補習班簽到系統 (測試版)</h1>
+    <h1>補習班簽到與管理系統</h1>
     
+    <!-- 學生端簽到區 -->
     <div class="box">
-        <h3>身分模擬</h3>
-        <p>假設您現在是學生：<strong>陳小華 (student_001)</strong></p>
+        <h3>🎓 學生簽到模擬</h3>
+        <p>目前模擬學生：<strong>陳小華 (student_001)</strong></p>
         <button onclick="loadClasses('student_001')">載入陳小華的課表</button>
+
+        <div id="checkinSection" style="display:none; margin-top: 15px;">
+            <label>選擇要簽到的班別：</label>
+            <select id="classSelect">
+                <option value="">請選擇班別</option>
+            </select>
+            <button onclick="submitCheckin('student_001')">確認簽到</button>
+        </div>
+        <p id="message" style="margin-top: 10px; font-weight: bold;"></p>
     </div>
 
-    <div class="box" id="checkinSection" style="display:none;">
-        <h3>選擇班別簽到</h3>
-        <select id="classSelect">
-            <!-- 課表會載入到這裡 -->
-        </select>
-        <br>
-        <button onclick="submitCheckin('student_001')">確認簽到</button>
-        <p id="message" style="color: blue;"></p>
+    <!-- 老師/管理者端報表區 -->
+    <div class="box" style="border-left: 5px solid #28a745;">
+        <h3>📊 老師專區：簽到紀錄與學費統計</h3>
+        <button class="admin-btn" onclick="loadReport()">重新載入簽到報表</button>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>學生姓名</th>
+                        <th>班別</th>
+                        <th>單堂費用</th>
+                        <th>簽到時間</th>
+                    </tr>
+                </thead>
+                <tbody id="reportTableBody">
+                    <tr><td colspan="4" style="text-align: center; color: #777;">點擊上方按鈕載入資料</td></tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <script>
-        // 載入學生的班別
         async function loadClasses(studentId) {
-            document.getElementById('message').innerText = "載入中...";
+            const msg = document.getElementById('message');
+            msg.innerText = "載入中...";
+            msg.style.color = "black";
             try {
-                // 呼叫 Cloudflare Functions API
                 const response = await fetch(`/api/student-classes?studentId=${studentId}`);
                 const classes = await response.json();
                 
@@ -48,21 +76,21 @@
                 });
 
                 document.getElementById('checkinSection').style.display = 'block';
-                document.getElementById('message').innerText = "";
+                msg.innerText = "";
             } catch (err) {
-                document.getElementById('message').innerText = "載入失敗";
-                document.getElementById('message').style.color = "red";
+                msg.innerText = "載入失敗";
+                msg.style.color = "red";
             }
         }
 
-        // 送出簽到
         async function submitCheckin(studentId) {
             const classId = document.getElementById('classSelect').value;
+            const msg = document.getElementById('message');
             if (!classId) return alert('請先選擇班別');
 
-            document.getElementById('message').innerText = "簽到處理中...";
+            msg.innerText = "簽到處理中...";
+            msg.style.color = "black";
             try {
-                // 呼叫 Cloudflare Functions API 寫入資料庫
                 const response = await fetch('/api/checkin', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -71,12 +99,44 @@
                 
                 const result = await response.json();
                 if(result.success) {
-                    document.getElementById('message').innerText = "簽到成功！費用已計算。";
-                    document.getElementById('message').style.color = "green";
+                    msg.innerText = "簽到成功！";
+                    msg.style.color = "green";
+                    loadReport(); // 自動更新下方報表
+                } else {
+                    msg.innerText = "簽到失敗";
+                    msg.style.color = "red";
                 }
             } catch (err) {
-                document.getElementById('message').innerText = "簽到失敗";
-                document.getElementById('message').style.color = "red";
+                msg.innerText = "網路錯誤";
+                msg.style.color = "red";
+            }
+        }
+
+        async function loadReport() {
+            const tbody = document.getElementById('reportTableBody');
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">載入中...</td></tr>';
+            try {
+                const response = await fetch('/api/report');
+                const records = await response.json();
+
+                if (records.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #777;">目前尚無簽到紀錄</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = '';
+                records.forEach(r => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${r.student_name}</td>
+                        <td>${r.class_name}</td>
+                        <td>$${r.cost_per_session}</td>
+                        <td>${r.checkin_time}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (err) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: red;">載入報表失敗</td></tr>';
             }
         }
     </script>

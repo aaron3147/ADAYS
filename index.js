@@ -56,7 +56,33 @@ export default {
       }
     }
 
-    // 若非 API 請求，Cloudflare 會自動從 public 資料夾載入靜態網頁
+    // 3. 新增：取得所有簽到紀錄與學費統計報表 API
+    if (path === '/api/report' && request.method === 'GET') {
+      try {
+        const query = `
+          SELECT 
+            attendance.id,
+            students.name as student_name,
+            classes.name as class_name,
+            classes.cost_per_session,
+            attendance.checkin_time
+          FROM attendance
+          JOIN students ON attendance.student_id = students.id
+          JOIN classes ON attendance.class_id = classes.id
+          ORDER BY attendance.checkin_time DESC
+        `;
+        const { results } = await env.DB.prepare(query).all();
+        return new Response(JSON.stringify(results), {
+          headers: { 'Content-Type': 'application/json' },
+        });
+      } catch (error) {
+        return new Response(JSON.stringify({ error: error.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
     return new Response('Not Found', { status: 404 });
   }
 };
