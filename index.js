@@ -4,6 +4,7 @@ async function initDB(db) {
   await db.prepare(`CREATE TABLE IF NOT EXISTS course_level3 (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, level2_id INTEGER);`).run();
   await db.prepare(`CREATE TABLE IF NOT EXISTS classrooms (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT);`).run();
   await db.prepare(`CREATE TABLE IF NOT EXISTS teachers (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT);`).run();
+  
   await db.prepare(`
     CREATE TABLE IF NOT EXISTS students (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -19,7 +20,7 @@ async function initDB(db) {
     );
   `).run();
   
-  // 自動補齊可能遺漏的欄位，徹底解決 D1_ERROR 欄位不存在問題
+  // 自動補齊欄位確保舊資料庫不會發生 no such column 錯誤
   const cols = [
     'parent_phone TEXT', 'password TEXT DEFAULT "1234"', 'english_name TEXT', 
     'gender TEXT', 'birth_date TEXT', 'school TEXT', 'grade TEXT', 'parent_name TEXT'
@@ -142,7 +143,7 @@ export default {
         return jsonRes({ classrooms, teachers });
       }
 
-      // 3. 課程與具備衝堂檢測的週期排課
+      // 3. 課程與衝堂警示排課
       if (path === '/api/courses' && method === 'GET') {
         const query = `
           SELECT courses.*, 
@@ -176,6 +177,7 @@ export default {
 
         let batchQueries = [];
         let datesToCheck = [];
+        let warnings = [];
 
         while (curr <= end) {
           let jsDay = curr.getDay();
@@ -186,19 +188,15 @@ export default {
           curr.setDate(curr.getDate() + 1);
         }
 
-        // 檢查教室衝堂
+        // 檢查教室衝堂（改為收集警告，但不阻擋建立）
         for (let item of datesToCheck) {
           const { results: existing } = await env.DB.prepare(
             'SELECT courses.*, classrooms.name as c_name FROM courses LEFT JOIN classrooms ON courses.classroom_id = classrooms.id WHERE courses.classroom_id = ? AND courses.start_date = ?'
           ).bind(classroom_id, item.dateStr).all();
 
           for (let ex of existing) {
-            // 時間區間重疊判斷
             if (start_time < ex.end_time && end_time > ex.start_time) {
-              return jsonRes({ 
-                success: false, 
-                error: `衝堂警告：${item.dateStr} 該教室已被「${ex.name}」(${ex.start_time}~${ex.end_time}) 佔用！` 
-              }, 400);
+              warnings.push(`衝堂警告：${item.dateStr} 該教室已被「${ex.name}」(${ex.start_time}~${ex.end_time}) 佔用！`);
             }
           }
 
@@ -212,7 +210,7 @@ export default {
         if (batchQueries.length > 0) {
           await env.DB.batch(batchQueries);
         }
-        return jsonRes({ success: true, count: batchQueries.length });
+        return jsonRes({ success: true, count: batchQueries.length, warnings });
       }
 
       // 4. 學生管理
@@ -301,7 +299,9 @@ export default {
       // 家長端登入
       if (path === '/api/parent/login' && method === 'POST') {
         const { phone, password } = await request.json();
-        const student = await env.DB.prepare('SELECT * FROM students WHERE parent_phone = ? AND password = ?').bind(phone, password || '1234').first();
+        const cleanPhone = (phone || '').trim();
+        const cleanPwd = (password || '1234').trim();
+        const student = await env.DB.prepare('SELECT * FROM students WHERE parent_phone = ? AND password = ?').bind(cleanPhone, cleanPwd).first();
         if (student) {
           const enrollments = (await env.DB.prepare(`
             SELECT enrollments.fee, enroll_month, courses.* 
