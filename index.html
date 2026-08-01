@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>補習班簽到測試</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        .box { border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
+        select, button { padding: 8px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h1>補習班簽到系統 (測試版)</h1>
+    
+    <div class="box">
+        <h3>身分模擬</h3>
+        <p>假設您現在是學生：<strong>陳小華 (student_001)</strong></p>
+        <button onclick="loadClasses('student_001')">載入陳小華的課表</button>
+    </div>
+
+    <div class="box" id="checkinSection" style="display:none;">
+        <h3>選擇班別簽到</h3>
+        <select id="classSelect">
+            <!-- 課表會載入到這裡 -->
+        </select>
+        <br>
+        <button onclick="submitCheckin('student_001')">確認簽到</button>
+        <p id="message" style="color: blue;"></p>
+    </div>
+
+    <script>
+        // 載入學生的班別
+        async function loadClasses(studentId) {
+            document.getElementById('message').innerText = "載入中...";
+            try {
+                // 呼叫 Cloudflare Functions API
+                const response = await fetch(`/api/student-classes?studentId=${studentId}`);
+                const classes = await response.json();
+                
+                const selectBox = document.getElementById('classSelect');
+                selectBox.innerHTML = '<option value="">請選擇班別</option>';
+                
+                classes.forEach(c => {
+                    const option = document.createElement('option');
+                    option.value = c.id;
+                    option.textContent = `${c.name} (單堂費用: $${c.cost_per_session})`;
+                    selectBox.appendChild(option);
+                });
+
+                document.getElementById('checkinSection').style.display = 'block';
+                document.getElementById('message').innerText = "";
+            } catch (err) {
+                document.getElementById('message').innerText = "載入失敗";
+                document.getElementById('message').style.color = "red";
+            }
+        }
+
+        // 送出簽到
+        async function submitCheckin(studentId) {
+            const classId = document.getElementById('classSelect').value;
+            if (!classId) return alert('請先選擇班別');
+
+            document.getElementById('message').innerText = "簽到處理中...";
+            try {
+                // 呼叫 Cloudflare Functions API 寫入資料庫
+                const response = await fetch('/api/checkin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ studentId, classId })
+                });
+                
+                const result = await response.json();
+                if(result.success) {
+                    document.getElementById('message').innerText = "簽到成功！費用已計算。";
+                    document.getElementById('message').style.color = "green";
+                }
+            } catch (err) {
+                document.getElementById('message').innerText = "簽到失敗";
+                document.getElementById('message').style.color = "red";
+            }
+        }
+    </script>
+</body>
+</html>
