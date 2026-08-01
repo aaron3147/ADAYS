@@ -56,20 +56,19 @@ export default {
       }
     }
 
-    // 3. 新增：取得所有簽到紀錄與學費統計報表 API
+    // 3. 取得簽到紀錄與學費統計報表 API (已避開未建立的 students 資料表)
     if (path === '/api/report' && request.method === 'GET') {
       try {
         const query = `
           SELECT 
             attendance.id,
-            students.name as student_name,
+            attendance.student_id,
             classes.name as class_name,
             classes.cost_per_session,
             attendance.checkin_time
           FROM attendance
-          JOIN students ON attendance.student_id = students.id
           JOIN classes ON attendance.class_id = classes.id
-          ORDER BY attendance.checkin_time DESC
+          ORDER BY attendance.id DESC
         `;
         const { results } = await env.DB.prepare(query).all();
         return new Response(JSON.stringify(results), {

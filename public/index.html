@@ -43,14 +43,14 @@
             <table>
                 <thead>
                     <tr>
-                        <th>學生姓名</th>
+                        <th>學生編號</th>
                         <th>班別</th>
                         <th>單堂費用</th>
                         <th>簽到時間</th>
                     </tr>
                 </thead>
                 <tbody id="reportTableBody">
-                    <tr><td colspan="4" style="text-align: center; color: #777;">點擊上方按鈕載入資料</td></tr>
+                    <tr><td colspan="4" style="text-align: center; color: #777;">載入中...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -128,10 +128,10 @@
                 records.forEach(r => {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
-                        <td>${r.student_name}</td>
+                        <td>${r.student_id}</td>
                         <td>${r.class_name}</td>
                         <td>$${r.cost_per_session}</td>
-                        <td>${r.checkin_time}</td>
+                        <td>${r.checkin_time || '剛剛'}</td>
                     `;
                     tbody.appendChild(tr);
                 });
@@ -139,6 +139,11 @@
                 tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: red;">載入報表失敗</td></tr>';
             }
         }
+
+        // 頁面載入時自動抓取一次報表
+        window.onload = () => {
+            loadReport();
+        };
     </script>
 </body>
 </html>
